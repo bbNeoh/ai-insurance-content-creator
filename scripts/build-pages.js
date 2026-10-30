@@ -41,7 +41,7 @@ sw = sw
   .replace("const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];",
            "const SHELL = ['./', 'index.html', 'local-api.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];")
   .replace("caches.match('/index.html')", "caches.match('index.html')")
-  .replace("const CACHE = 'content-ai-v1';", "const CACHE = 'content-ai-pages-v1';");
+  .replace("const CACHE = 'content-ai-v2';", "const CACHE = 'content-ai-pages-v2';");
 if (!sw.includes("'local-api.js'")) throw new Error('build-pages: sw.js changed shape — update the replacements above');
 fs.writeFileSync(path.join(out, 'sw.js'), sw);
 

@@ -1,6 +1,6 @@
 // Minimal service worker: makes the app installable and keeps the page shell
 // available offline. AI and login calls always go to the network.
-const CACHE = 'content-ai-pages-v1';
+const CACHE = 'content-ai-pages-v2';
 const SHELL = ['./', 'index.html', 'local-api.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
