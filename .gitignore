@@ -21,3 +21,4 @@ public/temp-images/
 
 # Private Netlify setup notes
 NETLIFY-SETTINGS.txt
+netlify.env
