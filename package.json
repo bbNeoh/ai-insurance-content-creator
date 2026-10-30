@@ -1,0 +1,22 @@
+{
+  "name": "insurance-content-app",
+  "version": "1.0.0",
+  "description": "AI-Powered Insurance Content Creation Workflow",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "@google/genai": "^1.0.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "openai": "^4.77.0",
+    "pg": "^8.20.0",
+    "serverless-http": "^3.2.0"
+  }
+}

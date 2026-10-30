@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Insurance Content Creator</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#1e40af" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Content AI" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-900: #1e3a5f; --blue-800: #1e40af; --blue-700: #1d4ed8;
+      --blue-600: #2563eb; --blue-500: #3b82f6; --blue-200: #bfdbfe;
+      --blue-100: #dbeafe; --blue-50: #eff6ff;
+      --orange: #f97316; --orange-dark: #ea580c;
+      --green: #10b981; --green-dark: #059669; --red: #ef4444;
+      --slate-900: #0f172a; --slate-700: #334155; --slate-600: #475569;
+      --slate-500: #64748b; --slate-400: #94a3b8; --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0; --slate-100: #f1f5f9; --white: #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-100); color: var(--slate-900);
+      min-height: 100vh; line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      background: linear-gradient(135deg, #0d2f6b 0%, #1565c0 55%, #1976d2 100%);
+      color: white; padding: 32px 24px; text-align: center; position: relative; overflow: hidden;
+    }
+    .app-header::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.06) 0%, transparent 60%),
+                        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 40%);
+    }
+    .header-content { position: relative; }
+    .header-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px;
+    }
+    .app-header h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .app-header p  { font-size: 13px; opacity: 0.82; }
+
+    /* ── Layout ── */
+    .app-main { max-width: 840px; margin: 0 auto; padding: 24px 16px 80px; }
+
+    /* ── Settings Bar ── */
+    .settings-card {
+      background: white; border-radius: 12px; padding: 16px 20px;
+      margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .settings-card label { font-size: 14px; font-weight: 600; color: var(--slate-700); white-space: nowrap; }
+    .settings-card input {
+      flex: 1; min-width: 180px; padding: 9px 13px;
+      border: 1.5px solid var(--slate-200); border-radius: 8px;
+      font-size: 14px; color: var(--slate-900); outline: none; transition: border-color 0.2s;
+    }
+    .settings-card input:focus { border-color: var(--blue-500); }
+    .settings-card input::placeholder { color: var(--slate-400); }
+
+    /* ── Language Selector ── */
+    .lang-selector { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+    .lang-btn {
+      padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1.5px solid var(--slate-200); background: white;
+      color: var(--slate-500); transition: all 0.15s; white-space: nowrap;
+    }
+    .lang-btn:hover { border-color: var(--blue-400); color: var(--blue-600); }
+    .lang-btn.active { background: var(--blue-600); border-color: var(--blue-600); color: white; }
+
+    /* ── Step Card ── */
+    .step-card {
+      background: white; border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      overflow: hidden; margin-bottom: 6px; transition: opacity 0.3s, filter 0.3s;
+    }
+    .step-card.locked { opacity: 0.5; pointer-events: none; filter: grayscale(0.3); }
+
+    .step-header {
+      background: linear-gradient(135deg, #1e40af, #2563eb);
+      color: white; padding: 18px 22px; display: flex; align-items: center; gap: 16px;
+    }
+    .step-card.locked .step-header { background: linear-gradient(135deg, #78909c, #90a4ae); }
+    .step-badge {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; font-weight: 800; flex-shrink: 0;
+    }
+    .step-header-text h2 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .step-header-text p  { font-size: 12px; opacity: 0.8; }
+    .locked-tag {
+      margin-left: auto; background: rgba(0,0,0,0.2); border-radius: 20px;
+      padding: 4px 12px; font-size: 12px; white-space: nowrap;
+    }
+    .step-body { padding: 20px 22px; }
+
+    /* ── Info Box ── */
+    .info-box {
+      background: var(--blue-50); border-left: 3px solid var(--blue-500);
+      border-radius: 0 8px 8px 0; padding: 10px 14px;
+      font-size: 13px; color: var(--slate-600); margin-bottom: 16px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; outline: none;
+      transition: transform 0.15s, box-shadow 0.15s; white-space: nowrap;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:not(:disabled):hover { transform: translateY(-1px); }
+    .btn-blue   { background: linear-gradient(135deg,#1e40af,#2563eb); color:white; box-shadow:0 2px 8px rgba(37,99,235,0.3); }
+    .btn-orange { background: linear-gradient(135deg,#ea580c,#f97316); color:white; box-shadow:0 2px 8px rgba(249,115,22,0.3); }
+    .btn-green  { background: linear-gradient(135deg,#059669,#10b981); color:white; box-shadow:0 2px 8px rgba(16,185,129,0.25); }
+    .btn-ghost  { background:transparent; color:var(--slate-500); border:1.5px solid var(--slate-200); }
+    .btn-ghost:not(:disabled):hover { background:var(--slate-100); color:var(--slate-700); }
+    .btn-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+
+    /* Spinner */
+    .spinner {
+      width:15px; height:15px; border:2px solid rgba(255,255,255,0.35);
+      border-top-color:white; border-radius:50%; animation:spin 0.7s linear infinite; flex-shrink:0;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Upload row ── */
+    .generate-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .or-divider { font-size:12px; color:var(--slate-400); font-weight:600; white-space:nowrap; }
+
+    /* ── Day Pills ── */
+    .day-label { font-size:12px; font-weight:700; color:var(--slate-400); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; }
+    .day-selector { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:16px; }
+    .day-pill {
+      padding:7px 14px; border-radius:20px; font-size:13px; font-weight:600;
+      cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-500); transition:all 0.15s;
+    }
+    .day-pill:hover { border-color:var(--blue-400); color:var(--blue-600); }
+    .day-pill.active { background:var(--blue-600); border-color:var(--blue-600); color:white; }
+
+    /* ── Post Type Toggle ── */
+    .type-toggle { display:flex; gap:12px; margin-bottom:18px; }
+    .type-option {
+      flex:1; padding:14px 10px; border-radius:10px; border:2px solid var(--slate-200);
+      background:white; cursor:pointer; text-align:center; transition:all 0.15s;
+    }
+    .type-option:hover { border-color:var(--blue-400); }
+    .type-option.active { border-color:var(--blue-600); background:var(--blue-50); }
+    .type-icon  { font-size:26px; margin-bottom:5px; }
+    .type-label { font-size:13px; font-weight:700; color:var(--slate-700); }
+    .type-desc  { font-size:11px; color:var(--slate-400); margin-top:2px; }
+    .type-option.active .type-label { color:var(--blue-700); }
+
+    /* ── Result Box ── */
+    .result-box {
+      margin-top:14px; background:var(--blue-50); border:1px solid var(--blue-100);
+      border-radius:10px; padding:18px; display:none; overflow-x:auto;
+    }
+    .result-box.show { display:block; }
+    .stream-text {
+      font-family:inherit; font-size:14px; line-height:1.75; color:var(--slate-700);
+      white-space:pre-wrap; word-break:break-word;
+    }
+    /* Markdown inside result-box */
+    .result-box table { width:100%; border-collapse:collapse; font-size:13px; margin:8px 0; min-width:480px; }
+    .result-box th { background:var(--blue-800); color:white; padding:9px 11px; text-align:left; font-weight:600; }
+    .result-box td { padding:9px 11px; border-bottom:1px solid var(--blue-100); vertical-align:top; }
+    .result-box tr:nth-child(even) td { background:rgba(59,130,246,0.04); }
+    .result-box tr:hover td { background:rgba(59,130,246,0.09); }
+    .result-box h1,.result-box h2,.result-box h3 { color:var(--blue-800); margin:14px 0 7px; font-size:14px; }
+    .result-box p  { margin:7px 0; font-size:14px; line-height:1.75; color:var(--slate-700); }
+    .result-box ul,.result-box ol { margin:7px 0 7px 20px; }
+    .result-box li { margin:4px 0; font-size:14px; color:var(--slate-700); }
+    .result-box strong { color:var(--blue-800); }
+    .result-box hr { border:none; border-top:1px solid var(--blue-200); margin:14px 0; }
+    .result-box pre { background:rgba(0,0,0,0.03); border-radius:6px; padding:10px; overflow-x:auto; }
+    .result-box code { font-family:'Courier New',monospace; font-size:13px; }
+
+    /* Loading */
+    .loading-state { display:flex; align-items:center; gap:10px; color:var(--slate-500); font-size:14px; }
+    .loading-spinner {
+      width:18px; height:18px; border:2px solid var(--blue-100); border-top-color:var(--blue-600);
+      border-radius:50%; animation:spin 0.8s linear infinite; flex-shrink:0;
+    }
+
+    /* ── Connector ── */
+    .connector { display:flex; align-items:center; gap:12px; padding:5px 4px; margin:2px 0; }
+    .connector-line { flex:1; height:2px; background:linear-gradient(90deg,transparent,var(--slate-300)); }
+    .connector-line:last-child { background:linear-gradient(270deg,transparent,var(--slate-300)); }
+    .connector-label {
+      font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+      color:var(--slate-400); white-space:nowrap; padding:4px 12px;
+      border:1px solid var(--slate-200); border-radius:20px; background:white;
+    }
+
+    /* ── Step 4 ── */
+    .social-icon { font-size:26px; }
+    .export-card {
+      background:linear-gradient(135deg,var(--blue-50),#f0f9ff);
+      border:1.5px solid var(--blue-100); border-radius:10px; padding:18px; margin-top:18px;
+    }
+    .export-card h3 { font-size:14px; font-weight:700; color:var(--blue-800); margin-bottom:12px; }
+    .s4-preview-box { margin-bottom:18px; }
+    .s4-post-textarea {
+      width:100%; min-height:110px; padding:11px 13px; box-sizing:border-box;
+      border:1.5px solid var(--slate-200); border-radius:8px; font-size:13px;
+      font-family:inherit; resize:vertical; background:var(--slate-50); color:var(--slate-700);
+    }
+    .s4-post-textarea:focus { outline:none; border-color:var(--blue-400); }
+    .social-post-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:4px; }
+    .social-post-card {
+      border:1.5px solid var(--slate-200); border-radius:10px;
+      padding:14px; background:white; display:flex; flex-direction:column; gap:8px;
+    }
+    .social-post-header { display:flex; align-items:center; gap:8px; }
+    .social-name { font-weight:700; font-size:13px; color:var(--slate-700); flex:1; }
+    .social-badge {
+      font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px;
+      background:var(--slate-100); color:var(--slate-500);
+    }
+    .social-badge.ready { background:#dcfce7; color:#166534; }
+    .social-badge.setup  { background:#fef9c3; color:#713f12; }
+    .social-note { font-size:11px; color:var(--slate-400); margin:0; line-height:1.4; }
+    .btn-platform { width:100%; padding:8px; font-size:13px; font-weight:600; border:none; border-radius:7px; cursor:pointer; transition:opacity .15s; }
+    .btn-platform:disabled { opacity:0.45; cursor:not-allowed; }
+    .btn-ig { background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color:#fff; }
+    .btn-fb { background:#1877f2; color:#fff; }
+    .btn-li { background:#0a66c2; color:#fff; }
+    .social-result { font-size:12px; min-height:18px; word-break:break-all; }
+    .social-result.ok  { color:#16a34a; }
+    .social-result.err { color:#dc2626; }
+    .social-manual-link { display:block; margin-top:7px; font-size:11px; color:var(--slate-400); text-decoration:none; text-align:center; }
+    .social-manual-link:hover { color:var(--blue-600); text-decoration:underline; }
+    .btn-purple { background:var(--blue-600); color:#fff; }
+
+    /* Error */
+    .error-msg { background:#fef2f2; border:1px solid #fee2e2; color:#dc2626; padding:11px 14px; border-radius:8px; font-size:14px; }
+
+    /* Toast */
+    #toast {
+      position:fixed; bottom:24px; right:24px; background:var(--slate-900); color:white;
+      padding:11px 18px; border-radius:8px; font-size:14px; font-weight:500;
+      opacity:0; transform:translateY(8px); transition:all 0.25s; z-index:999; pointer-events:none;
+    }
+    #toast.show { opacity:1; transform:translateY(0); }
+
+    /* ── Gemini Image Generation ── */
+    .gemini-section {
+      margin-top:18px; border-top:1.5px dashed var(--blue-200);
+      padding-top:18px; display:none;
+    }
+    .gemini-section.show { display:block; }
+    .gemini-label {
+      font-size:12px; font-weight:700; color:var(--slate-400);
+      letter-spacing:0.5px; text-transform:uppercase; margin-bottom:10px;
+    }
+    .gemini-img-wrap {
+      margin-top:14px; text-align:center; display:none;
+    }
+    .gemini-img-wrap.show { display:block; }
+    .gemini-img-wrap img {
+      max-width:100%; border-radius:12px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.12); display:block; margin:0 auto;
+    }
+    .gemini-img-caption {
+      font-size:12px; color:var(--slate-400); margin-top:8px;
+    }
+    .img-provider-row {
+      display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;
+    }
+    .btn-img-provider {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600;
+      border:1.5px solid var(--slate-200); background:#fff;
+      color:var(--slate-600); cursor:pointer; transition:all .15s;
+      white-space:nowrap;
+    }
+    .btn-img-provider:hover:not(:disabled) { border-color:var(--blue-600); color:var(--blue-600); background:var(--blue-50); }
+    .btn-img-provider.active {
+      border-color:var(--blue-600); background:var(--blue-600); color:#fff;
+    }
+    .btn-img-provider:disabled {
+      opacity:.38; cursor:not-allowed;
+    }
+    .btn-img-provider .provider-tag {
+      font-size:10px; font-weight:700; padding:1px 5px;
+      border-radius:4px; background:var(--slate-100);
+      color:var(--slate-500); letter-spacing:.3px;
+    }
+    .btn-img-provider.active .provider-tag { background:rgba(255,255,255,.25); color:#fff; }
+    .ref-image-row {
+      display:flex; align-items:center; gap:10px; margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+    .ref-image-label {
+      font-size:12px; color:var(--slate-400); white-space:nowrap;
+    }
+    .ref-image-input-wrap {
+      position:relative; flex:1; min-width:0;
+    }
+    .ref-image-input-wrap input[type="file"] {
+      display:none;
+    }
+    .btn-ref-upload {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 14px; border-radius:8px; font-size:13px; font-weight:600;
+      border:1.5px dashed var(--slate-300); background:var(--slate-50);
+      color:var(--slate-500); cursor:pointer; transition:all .15s;
+      white-space:nowrap;
+    }
+    .btn-ref-upload:hover { border-color:var(--blue-600); color:var(--blue-600); background:var(--blue-50); }
+    .ref-thumb-wrap {
+      display:flex; align-items:center; gap:8px;
+    }
+    .ref-thumb {
+      width:44px; height:44px; border-radius:8px; object-fit:cover;
+      border:1.5px solid var(--slate-200); display:none;
+    }
+    .ref-thumb.show { display:block; }
+    .btn-ref-clear {
+      font-size:11px; color:var(--slate-400); background:none; border:none;
+      cursor:pointer; padding:2px 4px; display:none;
+    }
+    .btn-ref-clear.show { display:inline; }
+    .ref-thumbs-row {
+      display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;
+    }
+    .ref-note {
+      font-size:11px; color:var(--slate-400); margin-bottom:10px;
+    }
+
+    /* ── Script type sub-selector ── */
+    .script-type-row { display:none; gap:10px; margin-bottom:14px; }
+    .script-type-pill {
+      flex:1; padding:10px 14px; border-radius:10px; border:2px solid var(--slate-200);
+      background:var(--slate-50); cursor:pointer; text-align:center;
+      font-size:13px; font-weight:600; color:var(--slate-500); transition:all .15s;
+    }
+    .script-type-pill:hover { border-color:var(--blue-600); color:var(--blue-600); }
+    .script-type-pill.active { border-color:var(--blue-600); background:var(--blue-600); color:#fff; }
+    .script-type-pill .pill-desc { font-size:11px; font-weight:400; margin-top:2px; opacity:.8; }
+
+    /* ── HeyGen section ── */
+    .heygen-section {
+      padding-top:18px; display:none; border-top:1.5px dashed var(--slate-200); margin-top:18px;
+    }
+    .heygen-section.show { display:block; }
+    .heygen-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;
+    }
+    .heygen-field { display:flex; flex-direction:column; gap:4px; }
+    .heygen-field label { font-size:12px; font-weight:600; color:var(--slate-600); }
+    .heygen-field small { font-size:11px; color:var(--slate-400); }
+    .heygen-select, .heygen-script-area {
+      width:100%; padding:8px 10px; border:1.5px solid var(--slate-200);
+      border-radius:8px; font-size:13px; color:var(--slate-700);
+      background:#fff; font-family:inherit; transition:border-color .15s;
+    }
+    .heygen-select:focus, .heygen-script-area:focus {
+      outline:none; border-color:var(--blue-500);
+    }
+    .heygen-script-area { resize:vertical; min-height:90px; line-height:1.5; }
+    .heygen-status-bar {
+      margin-top:12px; padding:10px 14px; border-radius:8px;
+      font-size:13px; display:flex; align-items:center; gap:8px;
+    }
+    .heygen-status-bar.processing { background:var(--blue-50); color:var(--blue-700); }
+    .heygen-status-bar.success    { background:#f0fdf4; color:#166534; }
+    .heygen-status-bar.error      { background:#fef2f2; color:#991b1b; }
+    .heygen-video-wrap { margin-top:12px; }
+    .heygen-video-wrap video { width:100%; border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,.1); }
+    @media (max-width:580px) { .heygen-grid { grid-template-columns:1fr; } }
+
+    @media (max-width:580px) {
+      .social-post-grid { grid-template-columns:1fr; }
+      .type-toggle  { flex-direction:column; }
+      .lang-selector { margin-left:0; }
+      .app-header h1 { font-size:19px; }
+    }
+
+    /* ── Style DNA ── */
+    .dna-card {
+      background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.07);
+      overflow:hidden; margin-bottom:20px;
+    }
+    .dna-header {
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+      padding:18px 24px; display:flex; align-items:center; gap:14px;
+    }
+    .dna-header-icon {
+      width:40px; height:40px; border-radius:12px;
+      background:rgba(255,255,255,.2); display:flex; align-items:center;
+      justify-content:center; font-size:20px; flex-shrink:0;
+    }
+    .dna-header-text h2 { margin:0; font-size:16px; font-weight:700; color:#fff; }
+    .dna-header-text p  { margin:2px 0 0; font-size:12px; color:rgba(255,255,255,.8); }
+    .dna-body { padding:20px 24px; }
+    .dna-panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+    @media(max-width:580px){ .dna-panels { grid-template-columns:1fr; } }
+    .dna-panel {
+      border:1.5px solid var(--slate-200); border-radius:12px;
+      padding:14px; background:var(--slate-100);
+    }
+    .dna-panel-title {
+      font-size:13px; font-weight:700; color:var(--slate-700);
+      margin-bottom:10px; display:flex; align-items:center; gap:6px;
+    }
+    .dna-url-row { display:flex; gap:6px; margin-bottom:8px; }
+    .dna-url-row input {
+      flex:1; padding:7px 10px; border:1.5px solid var(--slate-200);
+      border-radius:8px; font-size:12px; color:var(--slate-700);
+      background:#fff; font-family:inherit;
+    }
+    .dna-url-row input:focus { outline:none; border-color:#a855f7; }
+    .dna-fetch-status { font-size:11px; color:var(--slate-400); margin-bottom:6px; min-height:14px; }
+    .dna-or { font-size:11px; color:var(--slate-400); text-align:center;
+      margin:6px 0; font-weight:600; letter-spacing:.5px; }
+    .dna-textarea {
+      width:100%; padding:8px 10px; border:1.5px solid var(--slate-200);
+      border-radius:8px; font-size:12px; color:var(--slate-700);
+      background:#fff; font-family:inherit; resize:vertical; min-height:90px;
+      line-height:1.5; box-sizing:border-box;
+    }
+    .dna-textarea:focus { outline:none; border-color:#a855f7; }
+    .dna-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .btn-purple-dna {
+      padding:9px 18px; background:linear-gradient(135deg,#7c3aed,#a855f7);
+      color:#fff; border:none; border-radius:9px; font-size:13px;
+      font-weight:600; cursor:pointer; transition:opacity .15s;
+    }
+    .btn-purple-dna:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-purple-dna:not(:disabled):hover { opacity:.9; }
+    .dna-hint { font-size:12px; color:var(--slate-400); }
+    .dna-result {
+      margin-top:16px; padding:16px; border-radius:12px;
+      border:1.5px solid rgba(124,58,237,.25);
+      background:rgba(124,58,237,.04); font-size:13px;
+      line-height:1.7; display:none;
+    }
+    .dna-result.show { display:block; }
+    .dna-result h2 { color:#7c3aed; font-size:15px; margin-bottom:10px; }
+    .dna-result h3 { color:#a855f7; font-size:13px; margin:12px 0 4px; }
+    .dna-result ul  { padding-left:18px; }
+    .dna-result li  { margin-bottom:3px; }
+    .dna-active-tag {
+      display:none; margin-top:12px; padding:8px 14px;
+      background:#f0fdf4; border:1.5px solid #bbf7d0;
+      border-radius:8px; font-size:12px; font-weight:600; color:#166534;
+    }
+
+    /* ── MOBILE FULL RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .app-main { padding: 12px 12px 72px; }
+      .settings-card { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+      .settings-card input { min-width: 0; }
+      .lang-selector { margin-left: 0; justify-content: space-between; }
+      .lang-btn { flex: 1; text-align: center; padding: 7px 4px; font-size: 12px; }
+      .type-toggle { flex-direction: column; gap: 8px; }
+      .dna-panels { grid-template-columns: 1fr; }
+      .result-box { max-height: 320px; overflow-y: auto; }
+      .result-box table { min-width: 420px; }
+      .step-body { padding: 14px; }
+      .step-header { padding: 14px 16px; gap: 12px; }
+      .btn-row { gap: 6px; }
+      .btn { padding: 9px 14px; font-size: 12px; }
+      .social-post-grid { grid-template-columns: 1fr; }
+      body { padding-bottom: 64px; }
+    }
+
+    /* ── MOBILE BOTTOM NAV ── */
+    .mobile-nav { display: none; }
+
+    @media (max-width: 768px) {
+      .mobile-nav {
+        display: flex;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: #fff;
+        border-top: 2px solid #dbeafe;
+        z-index: 300;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+      }
+      .mob-nav-btn {
+        flex: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        padding: 7px 2px 9px; background: none; border: none;
+        cursor: pointer; color: #94a3b8; font-size: 9px;
+        gap: 3px; transition: color 0.2s; position: relative;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mob-nav-icon { font-size: 18px; line-height: 1; }
+      .mob-nav-btn.active { color: #2563eb; }
+      .mob-nav-dot {
+        position: absolute; top: 5px; right: calc(50% - 13px);
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #10b981; display: none;
+        border: 1px solid #fff;
+      }
+      .mob-nav-btn.step-done .mob-nav-dot { display: block; }
+
+      /* All sections hidden on mobile by default */
+      #dna-card,
+      #card-step1,
+      #card-step2,
+      #card-step3,
+      #card-step4 { display: none !important; }
+      .settings-card { display: flex !important; }
+
+      /* Active page — must use combined selectors to beat ID specificity */
+      #dna-card.mob-active,
+      #card-step1.mob-active,
+      #card-step2.mob-active,
+      #card-step3.mob-active,
+      #card-step4.mob-active { display: block !important; }
+
+      .step-card.locked { pointer-events: auto; }
+    }
+
+    /* ── CHANGE PASSWORD MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 500;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 16px; padding: 28px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal-title { font-size: 17px; font-weight: 700; color: #1e40af; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 5px; font-weight: 600; }
+    .modal-field input {
+      width: 100%; border: 1.5px solid #e2e8f0;
+      color: #0f172a; padding: 10px 14px; border-radius: 8px;
+      font-size: 14px; font-family: inherit;
+    }
+    .modal-field input:focus { outline: none; border-color: #2563eb; }
+    .modal-error { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; padding: 10px; color: #dc2626; font-size: 13px; margin-bottom: 12px; display: none; }
+    .modal-success { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px; color: #166534; font-size: 13px; margin-bottom: 12px; display: none; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-content">
+    <div class="header-pill">🤖 Powered by Claude AI</div>
+    <h1>AI Insurance Content Creator</h1>
+    <p>The AI-Powered Workflow for Insurance Agents &amp; Financial Advisors</p>
+    <div id="userInfo" style="display:none;align-items:center;justify-content:center;gap:10px;margin-top:10px">
+      <span id="userName" style="font-size:13px;color:rgba(255,255,255,0.85)"></span>
+      <button onclick="openChangePwd()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">🔑</button>
+      <button onclick="doLogout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<div id="toast"></div>
+
+<main class="app-main">
+
+  <!-- Settings -->
+  <div class="settings-card">
+    <label id="label-agent">👤 Your Name / Brand:</label>
+    <input type="text" id="agentName"
+           placeholder="e.g. Ahmad Ibrahim — Insurance Advisory"
+           oninput="saveState()" />
+    <div class="lang-selector">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en')">🇬🇧 EN</button>
+      <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">🇨🇳 中文</button>
+      <button class="lang-btn" data-lang="my" onclick="setLang('my')">🇲🇾 BM</button>
+      <button class="lang-btn" data-lang="ta" onclick="setLang('ta')">🇮🇳 தமிழ்</button>
+    </div>
+  </div>
+
+  <!-- ─── STYLE DNA ──────────────────────────────────────── -->
+  <div class="dna-card" id="dna-card">
+    <div class="dna-header">
+      <div class="dna-header-icon">🧬</div>
+      <div class="dna-header-text">
+        <h2>My Writing Style DNA</h2>
+        <p>Train the AI to write exactly like you — paste your social media posts</p>
+      </div>
+    </div>
+    <div class="dna-body">
+
+      <p style="font-size:13px;color:var(--slate-500);margin:0 0 14px;">
+        📋 <strong>How to get your posts:</strong> Go to your Facebook/LinkedIn profile → scroll through your posts → copy &amp; paste at least <strong>5–10 posts</strong> below (the more the better). Separate each post with a blank line.
+      </p>
+
+      <div class="dna-panels">
+
+        <!-- Facebook Panel -->
+        <div class="dna-panel">
+          <div class="dna-panel-title">📘 Facebook Posts <span style="font-weight:400;color:var(--slate-400);font-size:11px;">— paste 5–10 posts</span></div>
+          <textarea class="dna-textarea" id="dna-fb-posts" style="min-height:160px;" placeholder="Paste your Facebook posts here, one after another...&#10;&#10;Example:&#10;Ramai orang fikir insurans tu mahal. Tapi...&#10;&#10;[next post]&#10;Hari ni nak share kisah klien saya..."></textarea>
+        </div>
+
+        <!-- LinkedIn Panel -->
+        <div class="dna-panel">
+          <div class="dna-panel-title">💼 LinkedIn Posts <span style="font-weight:400;color:var(--slate-400);font-size:11px;">— paste 5–10 posts</span></div>
+          <textarea class="dna-textarea" id="dna-li-posts" style="min-height:160px;" placeholder="Paste your LinkedIn posts here...&#10;&#10;Tip: Go to your LinkedIn profile → click 'Activity' → 'Posts' → copy each post."></textarea>
+        </div>
+
+      </div>
+
+      <div class="dna-actions">
+        <button class="btn-purple-dna" id="dna-analyze-btn" onclick="dnaAnalyze()">🧬 Analyze My Writing Style</button>
+        <span class="dna-hint" id="dna-post-count">Paste at least 5 posts for best results</span>
+        <button class="btn btn-ghost" id="dna-clear-btn" onclick="dnaClear()" style="font-size:12px;margin-left:auto;display:none;">✕ Clear Profile</button>
+      </div>
+
+      <div class="dna-result" id="dna-result"></div>
+      <div class="dna-active-tag" id="dna-active-tag">✅ Style DNA Active — AI will write in your style</div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 1 ──────────────────────────────────────────── -->
+  <div class="step-card" id="card-step1">
+    <div class="step-header">
+      <div class="step-badge">1</div>
+      <div class="step-header-text">
+        <h2 id="s1-title">📅 Generate 7-Day Content Calendar</h2>
+        <p  id="s1-sub">Use Prompt 1.0 — plan a full week of insurance content</p>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="info-box" id="s1-info">
+        Creates a structured 7-day social media plan with content themes, post hooks, key messages, formats, and CTAs.
+      </div>
+      <!-- Hidden file input for Excel upload -->
+      <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv"
+             style="display:none" onchange="importFromExcel(event)" />
+      <div class="generate-row">
+        <button class="btn btn-blue" id="btn-step1" onclick="generateCalendar()">
+          📅 Generate Calendar
+        </button>
+        <span class="or-divider" id="or-label">— or —</span>
+        <button class="btn btn-ghost" id="btn-upload"
+                onclick="document.getElementById('excel-upload').click()">
+          📤 Upload from Excel
+        </button>
+      </div>
+      <div class="result-box" id="result-step1"></div>
+      <div class="btn-row" id="actions-step1" style="display:none">
+        <button class="btn btn-green"  id="btn-s1-copy"  onclick="copyContent(1)">📋 Copy Calendar</button>
+        <button class="btn btn-green"  id="btn-s1-excel" onclick="exportToExcel()">📊 Export to Excel</button>
+        <button class="btn btn-ghost"  id="btn-s1-regen" onclick="generateCalendar()">↻ Regenerate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label" id="c1">📆 CALENDAR GENERATED</div>
+    <div class="connector-line"></div>
+  </div>
+
+  <!-- ─── STEP 2 ──────────────────────────────────────────── -->
+  <div class="step-card locked" id="card-step2">
+    <div class="step-header">
+      <div class="step-badge">2</div>
+      <div class="step-header-text">
+        <h2 id="s2-title">✍️ Draft Your Insurance Post</h2>
+        <p  id="s2-sub">Use Prompt 2.0 — Hook, Value &amp; CTA for one day</p>
+      </div>
+      <div class="locked-tag" id="lock-step2">🔒 Complete Step 1 first</div>
+    </div>
+    <div class="step-body">
+      <div class="info-box" id="s2-info">
+        Select a day from your calendar, then generate a complete ready-to-publish social media post.
+      </div>
+      <p class="day-label" id="s2-day-label">Select Day:</p>
+      <div class="day-selector">
+        <button class="day-pill active" onclick="selectDay(1,this)">Day 1</button>
+        <button class="day-pill" onclick="selectDay(2,this)">Day 2</button>
+        <button class="day-pill" onclick="selectDay(3,this)">Day 3</button>
+        <button class="day-pill" onclick="selectDay(4,this)">Day 4</button>
+        <button class="day-pill" onclick="selectDay(5,this)">Day 5</button>
+        <button class="day-pill" onclick="selectDay(6,this)">Day 6</button>
+        <button class="day-pill" onclick="selectDay(7,this)">Day 7</button>
+      </div>
+      <button class="btn btn-blue" id="btn-step2" onclick="generatePost()">
+        ✍️ Generate Post for Day <span id="day-label">1</span>
+      </button>
+      <div class="result-box" id="result-step2"></div>
+      <div class="btn-row" id="actions-step2" style="display:none">
+        <button class="btn btn-green" id="btn-s2-copy"  onclick="copyContent(2)">📋 Copy Post</button>
+        <button class="btn btn-ghost" id="btn-s2-regen" onclick="generatePost()">↻ Regenerate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label" id="c2">🎯 SELECT POST TYPE</div>
+    <div class="connector-line"></div>
+  </div>
+
+  <!-- ─── STEP 3 ──────────────────────────────────────────── -->
+  <div class="step-card locked" id="card-step3">
+    <div class="step-header">
+      <div class="step-badge">3</div>
+      <div class="step-header-text">
+        <h2 id="s3-title">🎨 Create Your Content Asset</h2>
+        <p  id="s3-sub">Use Prompt 3.1 or 3.2 — image prompt or video script</p>
+      </div>
+      <div class="locked-tag" id="lock-step3">🔒 Complete Step 2 first</div>
+    </div>
+    <div class="step-body">
+      <div class="info-box" id="s3-info">
+        Choose your content format: generate an AI image prompt or a first-person Reels video script.
+      </div>
+      <p class="day-label" id="s3-type-label">Content Type:</p>
+      <div class="type-toggle">
+        <div class="type-option active" id="type-static" onclick="selectType('static')">
+          <div class="type-icon">🖼️</div>
+          <div class="type-label" id="type-static-label">Static Post</div>
+          <div class="type-desc"  id="type-static-desc">Image prompt for Gemini, DALL·E, Dreamina</div>
+        </div>
+        <div class="type-option" id="type-reel" onclick="selectType('reel')">
+          <div class="type-icon">🎬</div>
+          <div class="type-label" id="type-reel-label">Reel / Video</div>
+          <div class="type-desc"  id="type-reel-desc">Video script for HeyGen, TikTok, Reels</div>
+        </div>
+      </div>
+      <!-- Script type sub-selector (shown for Reel only) -->
+      <div class="script-type-row" id="script-type-row">
+        <div class="script-type-pill active" id="stype-heygen" onclick="selectScriptType('heygen')">
+          🤖 HeyGen Avatar Script
+          <div class="pill-desc">Talking-head, spoken lines for AI avatar</div>
+        </div>
+        <div class="script-type-pill" id="stype-dreamina" onclick="selectScriptType('dreamina')">
+          🎬 Dreamina Drama Script
+          <div class="pill-desc">Cinematic scenes for AI video generation</div>
+        </div>
+      </div>
+
+      <button class="btn btn-orange" id="btn-step3" onclick="generateAsset()">
+        🎨 Generate <span id="asset-label">Image Prompt</span>
+      </button>
+      <div class="result-box" id="result-step3"></div>
+      <div class="btn-row" id="actions-step3" style="display:none">
+        <button class="btn btn-green" id="btn-s3-copy"  onclick="copyContent(3)">📋 Copy Content</button>
+        <button class="btn btn-ghost" id="btn-s3-regen" onclick="generateAsset()">↻ Regenerate</button>
+      </div>
+
+      <!-- Gemini Image Generation (static post only) -->
+      <div class="gemini-section" id="gemini-section">
+        <p class="gemini-label">🌟 AI Image Generation (Optional)</p>
+
+        <!-- Provider selector -->
+        <div class="img-provider-row" id="img-provider-row">
+          <button class="btn-img-provider" id="pvd-dalle"    onclick="selectImageProvider('dalle')"    disabled>🖼️ GPT Image 2 <span class="provider-tag">OpenAI</span></button>
+          <button class="btn-img-provider" id="pvd-seedream" onclick="selectImageProvider('seedream')" disabled>🎨 SeedDream <span class="provider-tag">Dreamina</span></button>
+          <button class="btn-img-provider" id="pvd-gemini"   onclick="selectImageProvider('gemini')"   disabled>✨ Gemini <span class="provider-tag">Google</span></button>
+        </div>
+
+        <!-- Reference image upload (multi) -->
+        <div id="ref-image-section">
+          <div class="ref-image-row">
+            <span class="ref-image-label">Reference images:</span>
+            <div class="ref-image-input-wrap">
+              <input type="file" id="ref-image-input" accept="image/*" multiple onchange="handleRefImageUpload(event)" />
+              <label for="ref-image-input" class="btn-ref-upload">📎 Upload reference images</label>
+            </div>
+          </div>
+          <div id="ref-thumbs-row" class="ref-thumbs-row"></div>
+          <p class="ref-note">Optional: upload one or more reference photos to guide image generation style.</p>
+        </div>
+
+        <button class="btn btn-blue" id="btn-gemini" onclick="generateGeminiImage()">
+          🌟 Generate AI Image
+        </button>
+        <div class="gemini-img-wrap" id="gemini-img-wrap">
+          <img id="gemini-img" src="" alt="AI Generated Image" />
+          <p class="gemini-img-caption" id="gemini-img-caption">AI Generated · Click download to save</p>
+          <div class="btn-row" style="justify-content:center; margin-top:12px;">
+            <button class="btn btn-green" onclick="downloadGeneratedImage()">⬇️ Download Image</button>
+            <button class="btn btn-ghost" onclick="generateGeminiImage()">↻ Regenerate Image</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HeyGen AI Avatar Video (reel post only) -->
+      <div class="heygen-section" id="heygen-section">
+        <p class="gemini-label">🎬 AI Avatar Video — HeyGen (Optional)</p>
+
+        <!-- Manual ID inputs (default) -->
+        <div id="heygen-manual-inputs">
+          <div class="heygen-grid">
+            <div class="heygen-field">
+              <label>Avatar ID <small>— <a href="https://app.heygen.com/avatars" target="_blank">find in HeyGen</a></small></label>
+              <input type="text" id="heygen-avatar-id" class="heygen-select" placeholder="e.g. Anna_public_3_20240108" />
+            </div>
+            <div class="heygen-field">
+              <label>Voice ID <small>— <a href="https://app.heygen.com/voices" target="_blank">find in HeyGen</a></small></label>
+              <input type="text" id="heygen-voice-id" class="heygen-select" placeholder="e.g. 2d5b0e6664524a74b33a7d845b692498" />
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--slate-400);margin-bottom:10px">
+            Paste IDs from your HeyGen account, or <button onclick="toggleHeygenDropdowns()" style="background:none;border:none;color:var(--blue-600);font-size:11px;cursor:pointer;padding:0;text-decoration:underline">load dropdowns from API</button>
+          </p>
+        </div>
+
+        <!-- Dropdown inputs (optional, loaded from API) -->
+        <div id="heygen-dropdown-inputs" style="display:none">
+          <div class="heygen-grid">
+            <div class="heygen-field">
+              <label>Avatar</label>
+              <select id="heygen-avatar" class="heygen-select"><option value="">—</option></select>
+            </div>
+            <div class="heygen-field">
+              <label>Voice</label>
+              <select id="heygen-voice" class="heygen-select"><option value="">—</option></select>
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--slate-400);margin-bottom:10px">
+            <button onclick="toggleHeygenDropdowns()" style="background:none;border:none;color:var(--blue-600);font-size:11px;cursor:pointer;padding:0;text-decoration:underline">← back to manual entry</button>
+          </p>
+        </div>
+
+        <div class="heygen-field" style="margin-bottom:12px">
+          <label>Spoken script <small>— stage directions removed, edit as needed</small></label>
+          <textarea id="heygen-script" class="heygen-script-area" rows="5" placeholder="Script will be auto-filled from the video script above…"></textarea>
+        </div>
+        <div class="btn-row" style="flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+          <button class="btn btn-blue"  id="btn-heygen"        onclick="generateHeygenVideo()">🎬 Generate Avatar Video</button>
+          <button class="btn btn-ghost" id="btn-copy-hyscript" onclick="copyHeygenScript()">📋 Copy Script</button>
+          <a class="btn btn-ghost" href="https://app.heygen.com" target="_blank" rel="noopener">↗ Open HeyGen</a>
+        </div>
+        <div id="heygen-result"></div>
+      </div>
+
+      <!-- Dreamina hint (shown for Dreamina script only) -->
+      <div id="dreamina-hint" style="display:none; padding-top:18px; border-top:1.5px dashed var(--slate-200); margin-top:18px;">
+        <p class="gemini-label">🎬 Next Steps — Dreamina AI Video</p>
+        <div class="heygen-status-bar" style="background:var(--slate-50); color:var(--slate-600); margin-top:8px; line-height:1.7;">
+          1. Copy the script above<br>
+          2. Open <a href="https://dreamina.capcut.com" target="_blank" rel="noopener" style="color:var(--blue-600)">Dreamina (CapCut AI)</a> → Video generation<br>
+          3. Paste each scene as a prompt and generate<br>
+          4. Edit and combine clips in CapCut
+        </div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn btn-blue" onclick="copyContent(3)">📋 Copy Full Script</button>
+          <a class="btn btn-ghost" href="https://dreamina.capcut.com" target="_blank" rel="noopener">↗ Open Dreamina</a>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label" id="c3">🚀 PREPARE FOR POSTING</div>
+    <div class="connector-line"></div>
+  </div>
+
+  <!-- ─── STEP 4 ──────────────────────────────────────────── -->
+  <div class="step-card locked" id="card-step4">
+    <div class="step-header">
+      <div class="step-badge">4</div>
+      <div class="step-header-text">
+        <h2 id="s4-title">🚀 Post to Social Media</h2>
+        <p  id="s4-sub">Share your content across all channels</p>
+      </div>
+      <div class="locked-tag" id="lock-step4">🔒 Complete Step 3 first</div>
+    </div>
+    <div class="step-body">
+      <!-- Post preview / editable before sending -->
+      <div class="s4-preview-box">
+        <label class="field-label">📝 Post Content</label>
+        <textarea id="s4-post-preview" class="s4-post-textarea" rows="6"
+          placeholder="Your generated post will appear here…"></textarea>
+      </div>
+
+      <!-- Platform cards -->
+      <div class="social-post-grid">
+
+        <!-- Instagram -->
+        <div class="social-post-card">
+          <div class="social-post-header">
+            <span class="social-icon">📸</span>
+            <span class="social-name">Instagram</span>
+            <span class="social-badge" id="badge-ig">…</span>
+          </div>
+          <p class="social-note" id="note-ig"></p>
+          <button class="btn-platform btn-ig" id="btn-ig" onclick="postToInstagram()" disabled>Post Now</button>
+          <div class="social-result" id="result-ig"></div>
+          <a class="social-manual-link" href="https://www.instagram.com" target="_blank" rel="noopener">↗ Open Instagram</a>
+        </div>
+
+        <!-- Facebook -->
+        <div class="social-post-card">
+          <div class="social-post-header">
+            <span class="social-icon">🔵</span>
+            <span class="social-name">Facebook</span>
+            <span class="social-badge" id="badge-fb">…</span>
+          </div>
+          <p class="social-note" id="note-fb"></p>
+          <button class="btn-platform btn-fb" id="btn-fb" onclick="postToFacebook()" disabled>Post Now</button>
+          <div class="social-result" id="result-fb"></div>
+          <a class="social-manual-link" href="https://www.facebook.com" target="_blank" rel="noopener">↗ Open Facebook</a>
+        </div>
+
+        <!-- LinkedIn -->
+        <div class="social-post-card">
+          <div class="social-post-header">
+            <span class="social-icon">💼</span>
+            <span class="social-name">LinkedIn</span>
+            <span class="social-badge" id="badge-li">…</span>
+          </div>
+          <p class="social-note" id="note-li"></p>
+          <button class="btn-platform btn-li" id="btn-li" onclick="postToLinkedIn()" disabled>Post Now</button>
+          <div class="social-result" id="result-li"></div>
+          <a class="social-manual-link" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener">↗ Open LinkedIn</a>
+        </div>
+
+      </div>
+
+      <div class="export-card">
+        <h3 id="s4-export-title">📦 Actions</h3>
+        <div class="btn-row">
+          <button class="btn btn-purple" onclick="postToAll()">🚀 Post to All</button>
+          <button class="btn btn-blue"   id="btn-export-all" onclick="exportAll()">📄 Download All (.txt)</button>
+          <button class="btn btn-orange" id="btn-new-post"   onclick="newPost()">✍️ New Post</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="changePwdModal">
+  <div class="modal-box">
+    <div class="modal-title">🔑 Change Password</div>
+    <div class="modal-sub">Enter your current password and choose a new one.</div>
+    <div class="modal-error" id="changePwdError"></div>
+    <div class="modal-success" id="changePwdSuccess"></div>
+    <div class="modal-field">
+      <label>Current Password</label>
+      <input type="password" id="cpCurrentPwd" placeholder="Your current password" />
+    </div>
+    <div class="modal-field">
+      <label>New Password</label>
+      <input type="password" id="cpNewPwd" placeholder="At least 6 characters" />
+    </div>
+    <div class="modal-field">
+      <label>Confirm New Password</label>
+      <input type="password" id="cpConfirmPwd" placeholder="Repeat new password" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="doChangePassword()" id="cpSubmitBtn">Update Password</button>
+      <button class="btn btn-ghost" onclick="closeChangePwd()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<nav class="mobile-nav" id="mobileNav">
+  <button class="mob-nav-btn active" id="mobNav_dna" onclick="mobileNav('dna')">
+    <span class="mob-nav-dot"></span>
+    <span class="mob-nav-icon">🧬</span>
+    <span>DNA</span>
+  </button>
+  <button class="mob-nav-btn" id="mobNav_calendar" onclick="mobileNav('calendar')">
+    <span class="mob-nav-dot"></span>
+    <span class="mob-nav-icon">📅</span>
+    <span>Calendar</span>
+  </button>
+  <button class="mob-nav-btn" id="mobNav_post" onclick="mobileNav('post')">
+    <span class="mob-nav-dot"></span>
+    <span class="mob-nav-icon">✏️</span>
+    <span>Post</span>
+  </button>
+  <button class="mob-nav-btn" id="mobNav_visuals" onclick="mobileNav('visuals')">
+    <span class="mob-nav-dot"></span>
+    <span class="mob-nav-icon">🎨</span>
+    <span>Visuals</span>
+  </button>
+  <button class="mob-nav-btn" id="mobNav_publish" onclick="mobileNav('publish')">
+    <span class="mob-nav-dot"></span>
+    <span class="mob-nav-icon">📤</span>
+    <span>Publish</span>
+  </button>
+</nav>
+
+<script>
+// ════════════════════════════════════════════════════
+// TRANSLATIONS
+// ════════════════════════════════════════════════════
+const T = {
+  en: {
+    agentLabel: '👤 Your Name / Brand:',
+    agentPlaceholder: 'e.g. Ahmad Ibrahim — Insurance Advisory',
+    s1Title: '📅 Generate 7-Day Content Calendar',
+    s1Sub:   'Use Prompt 1.0 — plan a full week of insurance content',
+    s1Info:  'Creates a structured 7-day social media plan with content themes, post hooks, key messages, formats, and CTAs.',
+    s1Btn:   '📅 Generate Calendar',
+    s1Upload:'📤 Upload from Excel',
+    orLabel: '— or —',
+    s1Copy:  '📋 Copy Calendar',
+    s1Excel: '📊 Export to Excel',
+    s1Regen: '↻ Regenerate',
+    c1: '📆 CALENDAR GENERATED',
+    c2: '🎯 SELECT POST TYPE',
+    c3: '🚀 PREPARE FOR POSTING',
+    s2Title: '✍️ Draft Your Insurance Post',
+    s2Sub:   'Use Prompt 2.0 — Hook, Value & CTA for one day',
+    s2Info:  'Select a day from your calendar, then generate a complete ready-to-publish social media post.',
+    s2DayLabel: 'Select Day:',
+    s2Btn:   '✍️ Generate Post for Day',
+    s2Copy:  '📋 Copy Post',
+    s2Regen: '↻ Regenerate',
+    s3Title: '🎨 Create Your Content Asset',
+    s3Sub:   'Use Prompt 3.1 or 3.2 — image prompt or video script',
+    s3Info:  'Choose your content format: generate an AI image prompt or a first-person Reels video script.',
+    s3TypeLabel:    'Content Type:',
+    s3Static:       'Static Post',
+    s3StaticDesc:   'Image prompt for Gemini, DALL·E, Dreamina',
+    s3Reel:         'Reel / Video',
+    s3ReelDesc:     'Video script for HeyGen, TikTok, Reels',
+    s3Btn:          '🎨 Generate',
+    s3BtnImg:       'Image Prompt',
+    s3BtnVid:       'Video Script',
+    s3Copy:         '📋 Copy Content',
+    s3Regen:        '↻ Regenerate',
+    s4Title: '🚀 Post to Social Media',
+    s4Sub:   'Share your content across all channels',
+    s4Text:  'Your content is ready! Post your generated images/reels with captions and hashtags to your social media channels.',
+    s4ExportTitle: '📦 Export & Next Steps',
+    s4Export: '📄 Download All (.txt)',
+    s4NewPost:'✍️ New Post',
+    lock1: '🔒 Complete Step 1 first',
+    lock2: '🔒 Complete Step 2 first',
+    lock3: '🔒 Complete Step 3 first',
+    generating: 'Generating…',
+    toastCopy: '📋 Copied to clipboard!',
+    toastCalendar: '✅ Calendar generated!',
+    toastPost: '✅ Post drafted!',
+    toastAsset: (type) => `✅ ${type} ready!`,
+    toastExcelExport: '📊 Calendar exported to Excel!',
+    toastExcelImport: '✅ Calendar imported from Excel!',
+    toastDownload: '📄 Content downloaded!',
+    toastNewPost: '✍️ Ready for a new post!',
+    exportCalendar: '📅 7-DAY CONTENT CALENDAR',
+    exportPost: (day) => `✍️ SOCIAL MEDIA POST — Day ${day}`,
+    exportAsset: (type) => `🎨 ${type === 'static' ? 'IMAGE PROMPT' : 'VIDEO SCRIPT'}`,
+    confirmNewPost: 'This will clear your current post and asset. The calendar will stay. Continue?',
+  },
+
+  zh: {
+    agentLabel: '👤 您的姓名 / 品牌：',
+    agentPlaceholder: '例如：Ahmad Ibrahim — 保险咨询',
+    s1Title: '📅 生成7天内容日历',
+    s1Sub:   '使用 Prompt 1.0 — 规划一周的保险内容',
+    s1Info:  '创建结构化的7天社交媒体计划，包含内容主题、帖子钩子、关键信息、格式和CTA。',
+    s1Btn:   '📅 生成日历',
+    s1Upload:'📤 从 Excel 上传',
+    orLabel: '— 或 —',
+    s1Copy:  '📋 复制日历',
+    s1Excel: '📊 导出到 Excel',
+    s1Regen: '↻ 重新生成',
+    c1: '📆 日历已生成',
+    c2: '🎯 选择帖子类型',
+    c3: '🚀 准备发布',
+    s2Title: '✍️ 起草您的保险帖子',
+    s2Sub:   '使用 Prompt 2.0 — 钩子、价值内容和CTA',
+    s2Info:  '从日历中选择一天，然后生成一个完整的可发布社交媒体帖子。',
+    s2DayLabel: '选择日期：',
+    s2Btn:   '✍️ 生成第',
+    s2Copy:  '📋 复制帖子',
+    s2Regen: '↻ 重新生成',
+    s3Title: '🎨 创建您的内容素材',
+    s3Sub:   '使用 Prompt 3.1 或 3.2 — 图片提示词或视频脚本',
+    s3Info:  '选择内容格式：生成AI图片提示词或第一人称短视频脚本。',
+    s3TypeLabel:  '内容类型：',
+    s3Static:     '静态帖子',
+    s3StaticDesc: '适用于 Gemini、DALL·E、Dreamina 的图片提示词',
+    s3Reel:       '短视频 / Reel',
+    s3ReelDesc:   '适用于 HeyGen、TikTok、Reels 的视频脚本',
+    s3Btn:        '🎨 生成',
+    s3BtnImg:     '图片提示词',
+    s3BtnVid:     '视频脚本',
+    s3Copy:       '📋 复制内容',
+    s3Regen:      '↻ 重新生成',
+    s4Title: '🚀 发布到社交媒体',
+    s4Sub:   '在所有渠道分享您的内容',
+    s4Text:  '您的内容已准备好！将生成的图片/视频与标题和话题标签发布到您的社交媒体渠道。',
+    s4ExportTitle: '📦 导出和下一步',
+    s4Export: '📄 下载全部 (.txt)',
+    s4NewPost:'✍️ 新帖子',
+    lock1: '🔒 请先完成第1步',
+    lock2: '🔒 请先完成第2步',
+    lock3: '🔒 请先完成第3步',
+    generating: '生成中…',
+    toastCopy: '📋 已复制到剪贴板！',
+    toastCalendar: '✅ 日历已生成！',
+    toastPost: '✅ 帖子已起草！',
+    toastAsset: (type) => `✅ ${type}已准备好！`,
+    toastExcelExport: '📊 日历已导出到Excel！',
+    toastExcelImport: '✅ 已从Excel导入日历！',
+    toastDownload: '📄 内容已下载！',
+    toastNewPost: '✍️ 准备好新帖子了！',
+    exportCalendar: '📅 7天内容日历',
+    exportPost: (day) => `✍️ 社交媒体帖子 — 第${day}天`,
+    exportAsset: (type) => `🎨 ${type === 'static' ? '图片提示词' : '视频脚本'}`,
+    confirmNewPost: '这将清除当前帖子和素材。日历将保留。继续吗？',
+  },
+
+  my: {
+    agentLabel: '👤 Nama / Jenama Anda:',
+    agentPlaceholder: 'cth. Ahmad Ibrahim — Perunding Insurans',
+    s1Title: '📅 Jana Kalendar Kandungan 7 Hari',
+    s1Sub:   'Guna Prompt 1.0 — rancang kandungan insurans seminggu',
+    s1Info:  'Mencipta pelan media sosial 7 hari berstruktur dengan tema kandungan, tajuk pos, mesej utama, format dan CTA.',
+    s1Btn:   '📅 Jana Kalendar',
+    s1Upload:'📤 Muat Naik dari Excel',
+    orLabel: '— atau —',
+    s1Copy:  '📋 Salin Kalendar',
+    s1Excel: '📊 Eksport ke Excel',
+    s1Regen: '↻ Jana Semula',
+    c1: '📆 KALENDAR DIJANA',
+    c2: '🎯 PILIH JENIS POS',
+    c3: '🚀 SEDIA UNTUK SIAR',
+    s2Title: '✍️ Draf Pos Insurans Anda',
+    s2Sub:   'Guna Prompt 2.0 — Hook, Nilai & CTA untuk satu hari',
+    s2Info:  'Pilih hari dari kalendar anda, kemudian jana satu pos media sosial lengkap yang siap untuk diterbitkan.',
+    s2DayLabel: 'Pilih Hari:',
+    s2Btn:   '✍️ Jana Pos untuk Hari',
+    s2Copy:  '📋 Salin Pos',
+    s2Regen: '↻ Jana Semula',
+    s3Title: '🎨 Cipta Aset Kandungan Anda',
+    s3Sub:   'Guna Prompt 3.1 atau 3.2 — prompt imej atau skrip video',
+    s3Info:  'Pilih format kandungan anda: jana prompt imej AI atau skrip video orang pertama untuk Reels.',
+    s3TypeLabel:  'Jenis Kandungan:',
+    s3Static:     'Pos Statik',
+    s3StaticDesc: 'Prompt imej untuk Gemini, DALL·E, Dreamina',
+    s3Reel:       'Reel / Video',
+    s3ReelDesc:   'Skrip video untuk HeyGen, TikTok, Reels',
+    s3Btn:        '🎨 Jana',
+    s3BtnImg:     'Prompt Imej',
+    s3BtnVid:     'Skrip Video',
+    s3Copy:       '📋 Salin Kandungan',
+    s3Regen:      '↻ Jana Semula',
+    s4Title: '🚀 Siar ke Media Sosial',
+    s4Sub:   'Kongsi kandungan anda merentasi semua saluran',
+    s4Text:  'Kandungan anda sudah siap! Siarkan imej/video yang dijana bersama kapsyen dan hashtag ke saluran media sosial anda.',
+    s4ExportTitle: '📦 Eksport & Langkah Seterusnya',
+    s4Export: '📄 Muat Turun Semua (.txt)',
+    s4NewPost:'✍️ Pos Baharu',
+    lock1: '🔒 Selesaikan Langkah 1 dahulu',
+    lock2: '🔒 Selesaikan Langkah 2 dahulu',
+    lock3: '🔒 Selesaikan Langkah 3 dahulu',
+    generating: 'Jana…',
+    toastCopy: '📋 Disalin ke papan klip!',
+    toastCalendar: '✅ Kalendar dijana!',
+    toastPost: '✅ Pos draf siap!',
+    toastAsset: (type) => `✅ ${type} siap!`,
+    toastExcelExport: '📊 Kalendar dieksport ke Excel!',
+    toastExcelImport: '✅ Kalendar dimuat naik dari Excel!',
+    toastDownload: '📄 Kandungan dimuat turun!',
+    toastNewPost: '✍️ Sedia untuk pos baharu!',
+    exportCalendar: '📅 KALENDAR KANDUNGAN 7 HARI',
+    exportPost: (day) => `✍️ POS MEDIA SOSIAL — Hari ${day}`,
+    exportAsset: (type) => `🎨 ${type === 'static' ? 'PROMPT IMEJ' : 'SKRIP VIDEO'}`,
+    confirmNewPost: 'Ini akan memadam pos dan aset semasa. Kalendar akan kekal. Teruskan?',
+  },
+
+  ta: {
+    agentLabel: '👤 உங்கள் பெயர் / பிராண்ட்:',
+    agentPlaceholder: 'எ.கா. அகமது — காப்பீட்டு ஆலோசகர்',
+    s1Title: '📅 7-நாள் உள்ளடக்க அட்டவணை உருவாக்கு',
+    s1Sub:   'Prompt 1.0 — ஒரு வாரம் காப்பீட்டு உள்ளடக்கம் திட்டமிடு',
+    s1Info:  '7-நாள் சமூக ஊடக திட்டம் — உள்ளடக்க தீம்கள், இடுகை ஹூக்குகள், முக்கிய செய்திகள், வடிவங்கள் மற்றும் CTA.',
+    s1Btn:   '📅 அட்டவணை உருவாக்கு',
+    s1Upload:'📤 Excel-இல் இருந்து பதிவேற்று',
+    orLabel: '— அல்லது —',
+    s1Copy:  '📋 அட்டவணையை நகலெடு',
+    s1Excel: '📊 Excel-க்கு ஏற்றுமதி',
+    s1Regen: '↻ மீண்டும் உருவாக்கு',
+    c1: '📆 அட்டவணை உருவாக்கப்பட்டது',
+    c2: '🎯 இடுகை வகை தேர்ந்தெடு',
+    c3: '🚀 இடுகைக்கு தயாராகு',
+    s2Title: '✍️ காப்பீட்டு இடுகை வரைவு',
+    s2Sub:   'Prompt 2.0 — Hook, மதிப்பு & CTA',
+    s2Info:  'அட்டவணையில் இருந்து ஒரு நாளை தேர்ந்தெடுத்து, வெளியிட தயாரான சமூக ஊடக இடுகை உருவாக்கு.',
+    s2DayLabel: 'நாளை தேர்ந்தெடு:',
+    s2Btn:   '✍️ நாள்',
+    s2Copy:  '📋 இடுகையை நகலெடு',
+    s2Regen: '↻ மீண்டும் உருவாக்கு',
+    s3Title: '🎨 உள்ளடக்க சொத்தை உருவாக்கு',
+    s3Sub:   'Prompt 3.1 அல்லது 3.2 — படம் prompt அல்லது வீடியோ script',
+    s3Info:  'உள்ளடக்க வடிவத்தை தேர்ந்தெடுக்கவும்: AI படம் prompt அல்லது Reels வீடியோ script.',
+    s3TypeLabel:  'உள்ளடக்க வகை:',
+    s3Static:     'நிலையான இடுகை',
+    s3StaticDesc: 'Gemini, DALL·E, Dreamina-க்கு படம் prompt',
+    s3Reel:       'Reel / வீடியோ',
+    s3ReelDesc:   'HeyGen, TikTok, Reels-க்கு வீடியோ script',
+    s3Btn:        '🎨 உருவாக்கு',
+    s3BtnImg:     'படம் Prompt',
+    s3BtnVid:     'வீடியோ Script',
+    s3Copy:       '📋 உள்ளடக்கம் நகலெடு',
+    s3Regen:      '↻ மீண்டும் உருவாக்கு',
+    s4Title: '🚀 சமூக ஊடகத்தில் இடுகையிடு',
+    s4Sub:   'அனைத்து சேனல்களிலும் உள்ளடக்கத்தை பகிர்',
+    s4Text:  'உங்கள் உள்ளடக்கம் தயார்! படங்கள்/reels-ஐ கேப்ஷன் மற்றும் hashtag-களுடன் சமூக ஊடக சேனல்களில் இடுகையிடுங்கள்.',
+    s4ExportTitle: '📦 ஏற்றுமதி & அடுத்த படிகள்',
+    s4Export: '📄 அனைத்தும் பதிவிறக்கு (.txt)',
+    s4NewPost:'✍️ புதிய இடுகை',
+    lock1: '🔒 முதலில் படி 1 முடிக்கவும்',
+    lock2: '🔒 முதலில் படி 2 முடிக்கவும்',
+    lock3: '🔒 முதலில் படி 3 முடிக்கவும்',
+    generating: 'உருவாக்குகிறது…',
+    toastCopy: '📋 நகலெடுக்கப்பட்டது!',
+    toastCalendar: '✅ அட்டவணை உருவாக்கப்பட்டது!',
+    toastPost: '✅ இடுகை தயார்!',
+    toastAsset: (type) => `✅ ${type} தயார்!`,
+    toastExcelExport: '📊 Excel-க்கு ஏற்றுமதி செய்யப்பட்டது!',
+    toastExcelImport: '✅ Excel-இல் இருந்து இறக்குமதி செய்யப்பட்டது!',
+    toastDownload: '📄 உள்ளடக்கம் பதிவிறக்கப்பட்டது!',
+    toastNewPost: '✍️ புதிய இடுகைக்கு தயார்!',
+    exportCalendar: '📅 7-நாள் உள்ளடக்க அட்டவணை',
+    exportPost: (day) => `✍️ சமூக ஊடக இடுகை — நாள் ${day}`,
+    exportAsset: (type) => `🎨 ${type === 'static' ? 'படம் PROMPT' : 'வீடியோ SCRIPT'}`,
+    confirmNewPost: 'தற்போதைய இடுகை மற்றும் சொத்து அழிக்கப்படும். அட்டவணை தங்கும். தொடரவா?',
+  },
+};
+
+// ════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════
+const state = {
+  agentName:    '',
+  lang:         'en',
+  selectedDay:  1,
+  postType:     'static',
+  calendar:     '',
+  post:         '',
+  asset:        '',
+  styleProfile: '',
+};
+
+// ── Style DNA uses its OWN storage key so it NEVER gets wiped ──────
+const DNA_KEY = 'insuranceDNA_v1';
+
+function dnaSave(profile, fbPosts, liPosts) {
+  localStorage.setItem(DNA_KEY, JSON.stringify({
+    profile,
+    fbPosts:   fbPosts  || '',
+    liPosts:   liPosts  || '',
+    savedAt:   new Date().toLocaleDateString(),
+  }));
+  state.styleProfile = profile;
+}
+
+function dnaLoad() {
+  try {
+    const saved = localStorage.getItem(DNA_KEY);
+    if (!saved) return;
+    const d = JSON.parse(saved);
+    if (d.profile) {
+      state.styleProfile = d.profile;
+      // Restore pasted posts so user can see what was analysed
+      if (d.fbPosts) document.getElementById('dna-fb-posts').value = d.fbPosts;
+      if (d.liPosts) document.getElementById('dna-li-posts').value = d.liPosts;
+      dnaShowProfile(d.profile, d.savedAt);
+      dnaUpdateCount();
+    }
+  } catch (_) {}
+}
+
+function t() { return T[state.lang] || T.en; }
+
+function saveState() {
+  state.agentName = document.getElementById('agentName').value;
+  localStorage.setItem('insuranceApp_v2', JSON.stringify(state));
+}
+
+function loadState() {
+  const saved = localStorage.getItem('insuranceApp_v2');
+  if (!saved) return;
+  try {
+    const s = JSON.parse(saved);
+    Object.assign(state, s);
+    document.getElementById('agentName').value = state.agentName || '';
+    // Day pills
+    document.querySelectorAll('.day-pill').forEach(p => p.classList.remove('active'));
+    const pills = document.querySelectorAll('.day-pill');
+    if (pills[state.selectedDay - 1]) pills[state.selectedDay - 1].classList.add('active');
+    // Type + lang (no full apply yet — done after DOMContentLoaded)
+    selectType(state.postType || 'static', true);
+    // Restore results
+    if (state.calendar) { showResult(1, state.calendar); unlockStep(2); }
+    if (state.post)     { showResult(2, state.post);     unlockStep(3); }
+    if (state.asset)    { showResult(3, state.asset);    unlockStep(4); initStep4(); }
+  } catch (_) {}
+}
+
+// ════════════════════════════════════════════════════
+// TRANSLATION APPLY
+// ════════════════════════════════════════════════════
+function tx(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function ta(id, attr, val) { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); }
+function tBtn(id, html) { const el = document.getElementById(id); if (el && !el.disabled) el.innerHTML = html; }
+
+function applyTranslations() {
+  const tr = t();
+  // Settings
+  tx('label-agent', tr.agentLabel);
+  ta('agentName', 'placeholder', tr.agentPlaceholder);
+  // Language buttons
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  const lb = document.querySelector(`[data-lang="${state.lang}"]`);
+  if (lb) lb.classList.add('active');
+  // Step 1
+  tx('s1-title', tr.s1Title); tx('s1-sub', tr.s1Sub); tx('s1-info', tr.s1Info);
+  tBtn('btn-step1', tr.s1Btn); tx('btn-upload', tr.s1Upload); tx('or-label', tr.orLabel);
+  tx('btn-s1-copy', tr.s1Copy); tx('btn-s1-excel', tr.s1Excel); tx('btn-s1-regen', tr.s1Regen);
+  // Connectors
+  tx('c1', tr.c1); tx('c2', tr.c2); tx('c3', tr.c3);
+  // Step 2
+  tx('s2-title', tr.s2Title); tx('s2-sub', tr.s2Sub); tx('s2-info', tr.s2Info);
+  tx('s2-day-label', tr.s2DayLabel);
+  tBtn('btn-step2', `${tr.s2Btn} <span id="day-label">${state.selectedDay}</span>`);
+  tx('btn-s2-copy', tr.s2Copy); tx('btn-s2-regen', tr.s2Regen);
+  // Step 3
+  tx('s3-title', tr.s3Title); tx('s3-sub', tr.s3Sub); tx('s3-info', tr.s3Info);
+  tx('s3-type-label', tr.s3TypeLabel);
+  tx('type-static-label', tr.s3Static); tx('type-static-desc', tr.s3StaticDesc);
+  tx('type-reel-label',   tr.s3Reel);   tx('type-reel-desc',   tr.s3ReelDesc);
+  const assetLbl = state.postType === 'static' ? tr.s3BtnImg : tr.s3BtnVid;
+  tBtn('btn-step3', `${tr.s3Btn} <span id="asset-label">${assetLbl}</span>`);
+  tx('btn-s3-copy', tr.s3Copy); tx('btn-s3-regen', tr.s3Regen);
+  // Step 4
+  tx('s4-title', tr.s4Title); tx('s4-sub', tr.s4Sub); tx('s4-text', tr.s4Text);
+  tx('s4-export-title', tr.s4ExportTitle);
+  tx('btn-export-all', tr.s4Export); tx('btn-new-post', tr.s4NewPost);
+  // Lock tags
+  tx('lock-step2', tr.lock1); tx('lock-step3', tr.lock2); tx('lock-step4', tr.lock3);
+}
+
+async function setLang(code) {
+  if (state.lang === code) return;
+
+  state.lang = code;
+  applyTranslations();
+  saveState();
+
+  // Translate existing calendar and post to the new language.
+  // Image prompt & video script always stay in English — skip those.
+  if (state.calendar) {
+    await translateStep(state.calendar, 1, 'calendar');
+    if (state.post) {
+      await translateStep(state.post, 2, 'post');
+    }
+  }
+}
+
+// Translate one piece of content and update the matching step
+async function translateStep(content, stepN, stateKey) {
+  showLoading(stepN);
+  try {
+    const result = await streamFetch('/api/translate', { content, language: state.lang }, stepN);
+    if (result) {
+      state[stateKey] = result;
+      document.getElementById(`actions-step${stepN}`).style.display = 'flex';
+      saveState();
+    }
+  } catch (e) {
+    document.getElementById(`result-step${stepN}`).innerHTML =
+      `<div class="error-msg">❌ ${e.message}</div>`;
+  }
+}
+
+// ════════════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════════════
+function unlockStep(n) {
+  const card = document.getElementById(`card-step${n}`);
+  const lock = document.getElementById(`lock-step${n}`);
+  if (card) card.classList.remove('locked');
+  if (lock) lock.style.display = 'none';
+}
+function lockStep(n) {
+  const card = document.getElementById(`card-step${n}`);
+  const lock = document.getElementById(`lock-step${n}`);
+  if (card) card.classList.add('locked');
+  if (lock) lock.style.display = '';
+}
+function resetStep(n) {
+  const box  = document.getElementById(`result-step${n}`);
+  const acts = document.getElementById(`actions-step${n}`);
+  if (box)  { box.classList.remove('show'); box.innerHTML = ''; }
+  if (acts) acts.style.display = 'none';
+}
+function setBtn(n, loading) {
+  const btn = document.getElementById(`btn-step${n}`);
+  if (!btn) return;
+  btn.disabled = loading;
+  const tr = t();
+  if (loading) {
+    btn.innerHTML = `<span class="spinner"></span> ${tr.generating}`;
+  } else {
+    if (n === 1) btn.innerHTML = tr.s1Btn;
+    if (n === 2) btn.innerHTML = `${tr.s2Btn} <span id="day-label">${state.selectedDay}</span>`;
+    if (n === 3) {
+      const lbl = state.postType === 'static' ? tr.s3BtnImg : tr.s3BtnVid;
+      btn.innerHTML = `${tr.s3Btn} <span id="asset-label">${lbl}</span>`;
+    }
+  }
+}
+function showResult(n, markdown) {
+  const box  = document.getElementById(`result-step${n}`);
+  const acts = document.getElementById(`actions-step${n}`);
+  box.classList.add('show');
+  box.innerHTML = marked.parse(markdown);
+  if (acts) acts.style.display = 'flex';
+}
+function showLoading(n) {
+  const box  = document.getElementById(`result-step${n}`);
+  const acts = document.getElementById(`actions-step${n}`);
+  box.classList.add('show');
+  box.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div> ${t().generating}</div>`;
+  if (acts) acts.style.display = 'none';
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ════════════════════════════════════════════════════
+// STREAMING
+// ════════════════════════════════════════════════════
+async function streamFetch(url, body, stepN) {
+  const box = document.getElementById(`result-step${stepN}`);
+  let accumulated = '', buffer = '', started = false;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+
+  const reader  = resp.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (!raw) continue;
+      let data;
+      try { data = JSON.parse(raw); } catch { continue; }
+
+      if (data.type === 'text') {
+        if (!started) { box.innerHTML = '<pre class="stream-text"></pre>'; started = true; }
+        accumulated += data.text;
+        const pre = box.querySelector('.stream-text');
+        if (pre) pre.textContent = accumulated;
+      } else if (data.type === 'done') {
+        box.innerHTML = marked.parse(accumulated);
+        return accumulated;
+      } else if (data.type === 'error') {
+        box.innerHTML = `<div class="error-msg">❌ ${data.message}</div>`;
+        throw new Error(data.message);
+      }
+    }
+  }
+  if (accumulated) box.innerHTML = marked.parse(accumulated);
+  return accumulated;
+}
+
+// ════════════════════════════════════════════════════
+// STEP ACTIONS
+// ════════════════════════════════════════════════════
+async function generateCalendar() {
+  state.agentName = document.getElementById('agentName').value;
+  setBtn(1, true); showLoading(1);
+  try {
+    const result = await streamFetch('/api/calendar',
+      { agentName: state.agentName, language: state.lang, styleProfile: state.styleProfile }, 1);
+    if (result) {
+      state.calendar = result; state.post = ''; state.asset = '';
+      document.getElementById('actions-step1').style.display = 'flex';
+      unlockStep(2); lockStep(3); lockStep(4);
+      resetStep(2); resetStep(3);
+      saveState(); toast(t().toastCalendar);
+      markMobileStep('calendar'); mobileNav('post');
+    }
+  } catch (e) {
+    document.getElementById('result-step1').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`;
+  }
+  setBtn(1, false);
+}
+
+async function generatePost() {
+  if (!state.calendar) return;
+  state.agentName = document.getElementById('agentName').value;
+  setBtn(2, true); showLoading(2);
+  try {
+    const result = await streamFetch('/api/post', {
+      calendarContent: state.calendar,
+      dayNumber:       state.selectedDay,
+      agentName:       state.agentName,
+      language:        state.lang,
+      styleProfile:    state.styleProfile,
+    }, 2);
+    if (result) {
+      state.post = result; state.asset = '';
+      document.getElementById('actions-step2').style.display = 'flex';
+      unlockStep(3); lockStep(4); resetStep(3);
+      saveState(); toast(t().toastPost);
+      markMobileStep('post'); mobileNav('visuals');
+    }
+  } catch (e) {
+    document.getElementById('result-step2').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`;
+  }
+  setBtn(2, false);
+}
+
+async function generateAsset() {
+  if (!state.post) return;
+  state.agentName = document.getElementById('agentName').value;
+  const isStatic   = state.postType === 'static';
+  const isHeygen   = !isStatic && selectedScriptType === 'heygen';
+  const isDreamina = !isStatic && selectedScriptType === 'dreamina';
+  const url = isStatic ? '/api/image-prompt'
+            : isHeygen ? '/api/video-script'
+            :            '/api/dreamina-script';
+  setBtn(3, true); showLoading(3);
+  try {
+    const result = await streamFetch(url, {
+      postCaption: state.post,
+      agentName:   state.agentName,
+      language:    state.lang,
+    }, 3);
+    if (result) {
+      state.asset = result;
+      document.getElementById('actions-step3').style.display = 'flex';
+      // Gemini image section — static only
+      const geminiSection = document.getElementById('gemini-section');
+      const geminiImgWrap = document.getElementById('gemini-img-wrap');
+      geminiSection.classList.toggle('show', isStatic);
+      geminiImgWrap.classList.remove('show');
+      if (isStatic) loadImageProviders();
+      // HeyGen section — heygen script only
+      const heygenSection = document.getElementById('heygen-section');
+      heygenSection.classList.toggle('show', isHeygen);
+      if (isHeygen) loadHeygenSection(result);
+      // Dreamina hint — dreamina script only
+      const draminaHint = document.getElementById('dreamina-hint');
+      if (draminaHint) draminaHint.style.display = isDreamina ? 'block' : 'none';
+      unlockStep(4); saveState(); initStep4();
+      const lbl = isStatic ? t().s3BtnImg : t().s3BtnVid;
+      toast(t().toastAsset(lbl));
+      markMobileStep('visuals');
+    }
+  } catch (e) {
+    document.getElementById('result-step3').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`;
+  }
+  setBtn(3, false);
+}
+
+// ════════════════════════════════════════════════════
+// IMAGE PROVIDER SELECTION
+// ════════════════════════════════════════════════════
+let selectedImageProvider = null;
+
+async function loadImageProviders() {
+  try {
+    const data = await fetch('/api/image-providers').then(r => r.json());
+    const ids  = { dalle: data.dalle, seedream: data.seedream, gemini: data.gemini };
+    let firstAvailable = null;
+    for (const [id, available] of Object.entries(ids)) {
+      const btn = document.getElementById('pvd-' + id);
+      if (!btn) continue;
+      if (available) {
+        btn.disabled = false;
+        if (!firstAvailable) firstAvailable = id;
+      } else {
+        btn.disabled = true;
+        btn.title = 'API key not set in .env';
+      }
+    }
+    // Keep current selection if still available, else pick first available
+    if (selectedImageProvider && ids[selectedImageProvider]) {
+      selectImageProvider(selectedImageProvider);
+    } else {
+      selectImageProvider(firstAvailable);
+    }
+  } catch {}
+}
+
+function selectImageProvider(id) {
+  selectedImageProvider = id;
+  ['dalle','seedream','gemini'].forEach(p => {
+    document.getElementById('pvd-' + p)?.classList.toggle('active', p === id);
+  });
+  // Show reference image section for all providers
+  const refSection = document.getElementById('ref-image-section');
+  if (refSection) refSection.style.display = '';
+}
+
+// ════════════════════════════════════════════════════
+// STYLE DNA
+// ════════════════════════════════════════════════════
+
+async function dnaFetchProfile(platform) {
+  const isFb    = platform === 'facebook';
+  const urlEl   = document.getElementById(isFb ? 'dna-fb-url'    : 'dna-li-url');
+  const btnEl   = document.getElementById(isFb ? 'dna-fetch-fb-btn' : 'dna-fetch-li-btn');
+  const statusEl= document.getElementById(isFb ? 'dna-fb-status' : 'dna-li-status');
+  const textEl  = document.getElementById(isFb ? 'dna-fb-posts'  : 'dna-li-posts');
+  const url     = urlEl.value.trim();
+  if (!url) { toast('Paste a profile URL first'); urlEl.focus(); return; }
+
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner"></span>';
+  statusEl.textContent = '⏳ Fetching posts…';
+
+  try {
+    const res  = await fetch('/api/scrape-profile', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      statusEl.textContent = `⚠️ ${data.error}`;
+      statusEl.style.color = '#b45309';
+    } else {
+      textEl.value = data.content;
+      statusEl.textContent = `✅ Loaded ${data.lineCount} blocks. Review below.`;
+      statusEl.style.color = '#166534';
+    }
+  } catch (err) {
+    statusEl.textContent = `⚠️ ${err.message} — paste manually instead.`;
+    statusEl.style.color = '#b45309';
+  }
+  btnEl.disabled = false;
+  btnEl.innerHTML = '🔍 Fetch';
+}
+
+function dnaCountPosts(text) {
+  if (!text.trim()) return 0;
+  // Count double-line breaks as post separators; minimum 1 if any text exists
+  return text.trim().split(/\n\s*\n/).filter(p => p.trim().length > 30).length || 1;
+}
+
+function dnaUpdateCount() {
+  const fb = dnaCountPosts(document.getElementById('dna-fb-posts').value);
+  const li = dnaCountPosts(document.getElementById('dna-li-posts').value);
+  const total = fb + li;
+  const hint  = document.getElementById('dna-post-count');
+  if (!hint) return;
+  if (total === 0) {
+    hint.textContent = 'Paste at least 5 posts for best results';
+    hint.style.color = '';
+  } else if (total < 5) {
+    hint.textContent = `⚠️ ${total} post${total>1?'s':''} detected — add more for better accuracy`;
+    hint.style.color = '#b45309';
+  } else {
+    hint.textContent = `✅ ${total} posts ready — good sample size!`;
+    hint.style.color = '#166534';
+  }
+}
+
+async function dnaAnalyze() {
+  const fbPosts = document.getElementById('dna-fb-posts').value.trim();
+  const liPosts = document.getElementById('dna-li-posts').value.trim();
+  if (!fbPosts && !liPosts) { toast('Paste at least some posts first'); return; }
+  const total = dnaCountPosts(fbPosts) + dnaCountPosts(liPosts);
+  if (total < 3) { toast('Please paste at least 3–5 posts for a meaningful style profile'); return; }
+
+  const btn = document.getElementById('dna-analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing…';
+
+  const resultEl = document.getElementById('dna-result');
+  resultEl.classList.add('show');
+  resultEl.innerHTML = '<span class="spinner"></span> Analyzing your unique writing style…';
+
+  const name = document.getElementById('agentName').value.trim();
+
+  try {
+    const resp = await fetch('/api/analyze-style', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ facebookPosts: fbPosts, linkedinPosts: liPosts, name }),
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '', buffer = '', started = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        let data; try { data = JSON.parse(raw); } catch { continue; }
+        if (data.type === 'text') {
+          if (!started) { resultEl.innerHTML = '<pre class="stream-text" style="white-space:pre-wrap;font-size:13px;"></pre>'; started = true; }
+          accumulated += data.text;
+          const pre = resultEl.querySelector('.stream-text');
+          if (pre) pre.textContent = accumulated;
+        } else if (data.type === 'done') {
+          const fbPosts = document.getElementById('dna-fb-posts').value.trim();
+          const liPosts = document.getElementById('dna-li-posts').value.trim();
+          dnaSave(accumulated, fbPosts, liPosts);
+          dnaShowProfile(accumulated, new Date().toLocaleDateString());
+          toast('🧬 Style DNA saved! AI will always write like you.');
+          break;
+        } else if (data.type === 'error') {
+          resultEl.innerHTML = `<div style="color:#dc2626">❌ ${data.message}</div>`;
+        }
+      }
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<div style="color:#dc2626">❌ ${err.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🧬 Analyze My Writing Style';
+}
+
+function dnaShowProfile(text, savedAt) {
+  const resultEl = document.getElementById('dna-result');
+  resultEl.classList.add('show');
+  resultEl.innerHTML = marked.parse(text);
+  document.getElementById('dna-clear-btn').style.display = '';
+  const tag = document.getElementById('dna-active-tag');
+  tag.style.display = 'block';
+  tag.innerHTML = `✅ Style DNA Active — AI will write in your style${savedAt ? ` <span style="font-weight:400;opacity:.7">(saved ${savedAt})</span>` : ''}`;
+}
+
+function dnaClear() {
+  if (!confirm('Delete your Style DNA profile? You will need to re-analyse your posts.')) return;
+  localStorage.removeItem(DNA_KEY);
+  state.styleProfile = '';
+  saveState();
+  document.getElementById('dna-result').classList.remove('show');
+  document.getElementById('dna-result').innerHTML = '';
+  document.getElementById('dna-clear-btn').style.display = 'none';
+  document.getElementById('dna-active-tag').style.display = 'none';
+  document.getElementById('dna-fb-posts').value = '';
+  document.getElementById('dna-li-posts').value = '';
+  dnaUpdateCount();
+  toast('Style profile deleted');
+}
+
+// ════════════════════════════════════════════════════
+// HEYGEN AI AVATAR VIDEO
+// ════════════════════════════════════════════════════
+let heygenPollTimer = null;
+let heygenDropdownsLoaded = false;
+
+// Strip all non-spoken content from the video script
+function extractSpokenText(raw) {
+  return raw
+    .split('\n')
+    .map(line => {
+      let t = line.trim();
+      if (!t) return '';
+
+      // Skip entire lines that are pure direction blocks: [ON-SCREEN TEXT: ...] [B-ROLL: ...]
+      if (/^\[.+\]$/.test(t)) return '';
+
+      // Skip section header lines that start with an emoji (⏱️ 📹 🎯 etc.)
+      if (/^[⏱📹🎯🪝💡📣]/u.test(t)) return '';
+
+      // Strip "SPOKEN:" prefix, keep the rest
+      t = t.replace(/^SPOKEN:\s*/i, '');
+
+      // Remove inline direction cues: [PAUSE] [B-ROLL: ...] [ON-SCREEN TEXT: ...] etc.
+      t = t.replace(/\[.*?\]/g, '').trim();
+
+      // Remove leading bullet points / dashes
+      t = t.replace(/^[•·\-\*]\s*/, '');
+
+      return t;
+    })
+    .filter(Boolean)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+async function loadHeygenSection(scriptText) {
+  if (scriptText) {
+    document.getElementById('heygen-script').value = extractSpokenText(scriptText);
+  }
+
+  // Check configuration — show warning if key not set
+  try {
+    const cfg = await fetch('/api/image-providers').then(r => r.json());
+    if (!cfg.heygen) {
+      document.getElementById('btn-heygen').disabled = true;
+      document.getElementById('heygen-result').innerHTML =
+        '<div class="heygen-status-bar" style="background:var(--slate-100);color:var(--slate-500);margin-top:10px">' +
+        '⚙️ Add <code>HEYGEN_API_KEY</code> to your <code>.env</code> file to enable this. ' +
+        'Get your key at <strong>app.heygen.com → Settings → API</strong>.</div>';
+    }
+  } catch { /* proceed anyway */ }
+}
+
+async function toggleHeygenDropdowns() {
+  const manualDiv   = document.getElementById('heygen-manual-inputs');
+  const dropdownDiv = document.getElementById('heygen-dropdown-inputs');
+  const showingManual = manualDiv.style.display !== 'none';
+
+  if (showingManual) {
+    // Switch to dropdowns — lazy-load on first open
+    manualDiv.style.display   = 'none';
+    dropdownDiv.style.display = '';
+    if (!heygenDropdownsLoaded) {
+      heygenDropdownsLoaded = true;
+      await _loadHeygenDropdowns();
+    }
+  } else {
+    // Switch back to manual
+    manualDiv.style.display   = '';
+    dropdownDiv.style.display = 'none';
+  }
+}
+
+async function _loadHeygenDropdowns() {
+  const avatarSel = document.getElementById('heygen-avatar');
+  const voiceSel  = document.getElementById('heygen-voice');
+
+  avatarSel.innerHTML = '<option value="">Loading avatars…</option>';
+  try {
+    const res     = await fetch('/api/heygen-avatars');
+    const data    = await res.json();
+    const avatars = data.data?.avatars || [];
+    if (!avatars.length) throw new Error(data.error || 'No avatars returned');
+    avatarSel.innerHTML = '<option value="">Select avatar…</option>' +
+      avatars.map(a => `<option value="${a.avatar_id}">${a.avatar_name}${a.gender ? ' (' + a.gender + ')' : ''}</option>`).join('');
+  } catch (err) {
+    avatarSel.innerHTML = `<option value="">❌ ${err.message}</option>`;
+  }
+
+  voiceSel.innerHTML = '<option value="">Loading voices…</option>';
+  try {
+    const res    = await fetch('/api/heygen-voices');
+    const data   = await res.json();
+    const voices = (data.data?.voices || []).sort((a, b) => (a.language||'').localeCompare(b.language||''));
+    if (!voices.length) throw new Error(data.error || 'No voices returned');
+    const groups = {};
+    for (const v of voices) {
+      const lang = v.language || 'Other';
+      if (!groups[lang]) groups[lang] = [];
+      groups[lang].push(v);
+    }
+    voiceSel.innerHTML = '<option value="">Select voice…</option>' +
+      Object.entries(groups).map(([lang, vs]) =>
+        `<optgroup label="${lang}">${vs.map(v =>
+          `<option value="${v.voice_id}">${v.display_name}${v.gender ? ' · ' + v.gender : ''}</option>`
+        ).join('')}</optgroup>`
+      ).join('');
+  } catch (err) {
+    voiceSel.innerHTML = `<option value="">❌ ${err.message}</option>`;
+  }
+}
+
+async function generateHeygenVideo() {
+  const isManual = document.getElementById('heygen-manual-inputs').style.display !== 'none';
+  const avatarId = isManual
+    ? document.getElementById('heygen-avatar-id').value.trim()
+    : document.getElementById('heygen-avatar').value;
+  const voiceId = isManual
+    ? document.getElementById('heygen-voice-id').value.trim()
+    : document.getElementById('heygen-voice').value;
+  const script   = document.getElementById('heygen-script').value.trim();
+  const resultEl = document.getElementById('heygen-result');
+  const btn      = document.getElementById('btn-heygen');
+
+  if (!avatarId) { toast(isManual ? 'Enter an Avatar ID' : 'Select an avatar'); return; }
+  if (!voiceId)  { toast(isManual ? 'Enter a Voice ID'   : 'Select a voice');   return; }
+  if (!script)   { toast('Script is empty');        return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+  resultEl.innerHTML = '';
+  if (heygenPollTimer) { clearTimeout(heygenPollTimer); heygenPollTimer = null; }
+
+  try {
+    const resp = await fetch('/api/heygen-generate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ script, avatarId, voiceId }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Generation failed');
+    setHeygenStatus('processing', '⏳ Video is being generated… this takes 1–3 minutes.');
+    pollHeygenStatus(data.videoId, 0);
+  } catch (err) {
+    const isCredits = /credit|quota|insufficient|balance|payment/i.test(err.message);
+    const hint = isCredits
+      ? ' — Your HeyGen account has no credits. Top up at <a href="https://app.heygen.com/settings?tab=billing" target="_blank">app.heygen.com → Billing</a>, or <button class="btn btn-ghost" style="font-size:12px;padding:3px 8px" onclick="copyHeygenScript()">📋 Copy Script</button> to create manually in the web app.'
+      : '';
+    setHeygenStatus('error', `❌ ${err.message}${hint}`);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🎬 Generate Avatar Video';
+}
+
+function copyHeygenScript() {
+  const script = document.getElementById('heygen-script').value.trim();
+  if (!script) { toast('No script to copy'); return; }
+  navigator.clipboard.writeText(script).then(() => toast('📋 Script copied!')).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = script; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('📋 Script copied!');
+  });
+}
+
+function setHeygenStatus(type, msg) {
+  const resultEl = document.getElementById('heygen-result');
+  resultEl.innerHTML = `<div class="heygen-status-bar ${type}">${msg}</div>`;
+}
+
+function pollHeygenStatus(videoId, attempts) {
+  if (attempts > 72) { // 6 minutes max
+    setHeygenStatus('error', '❌ Timed out waiting for video. Check your HeyGen dashboard.');
+    return;
+  }
+  heygenPollTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch(`/api/heygen-video-status/${videoId}`);
+      const data = await resp.json();
+      const status   = data.data?.status;
+      const videoUrl = data.data?.video_url;
+
+      if (status === 'completed' && videoUrl) {
+        document.getElementById('heygen-result').innerHTML = `
+          <div class="heygen-status-bar success">✅ Video ready!</div>
+          <div class="heygen-video-wrap">
+            <video src="${videoUrl}" controls playsinline></video>
+            <div class="btn-row" style="justify-content:center;margin-top:10px">
+              <a class="btn btn-green" href="${videoUrl}" target="_blank" download>⬇️ Download Video</a>
+            </div>
+          </div>`;
+      } else if (status === 'failed') {
+        setHeygenStatus('error', '❌ HeyGen video generation failed. Try again.');
+      } else {
+        setHeygenStatus('processing', `⏳ Processing… (${Math.round(attempts * 5 / 60 * 10) / 10} min)`);
+        pollHeygenStatus(videoId, attempts + 1);
+      }
+    } catch {
+      pollHeygenStatus(videoId, attempts + 1);
+    }
+  }, 5000);
+}
+
+// ════════════════════════════════════════════════════
+// REFERENCE IMAGE UPLOAD (multi-image)
+// ════════════════════════════════════════════════════
+let refImages = []; // [{data, mimeType, dataUrl}, ...]
+
+function handleRefImageUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      refImages.push({ data: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg', dataUrl });
+      renderRefThumbs();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderRefThumbs() {
+  const row = document.getElementById('ref-thumbs-row');
+  row.innerHTML = refImages.map((img, i) => `
+    <div class="ref-thumb-wrap">
+      <img class="ref-thumb show" src="${img.dataUrl}" alt="Ref ${i+1}" />
+      <button class="btn-ref-clear show" onclick="removeRefImage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeRefImage(i) {
+  refImages.splice(i, 1);
+  renderRefThumbs();
+}
+
+// ════════════════════════════════════════════════════
+// GEMINI IMAGE GENERATION
+// ════════════════════════════════════════════════════
+async function generateGeminiImage() {
+  if (!state.asset) return;
+  const btn = document.getElementById('btn-gemini');
+  const imgWrap = document.getElementById('gemini-img-wrap');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating…';
+  imgWrap.classList.remove('show');
+
+  try {
+    const payload = { imagePrompt: state.asset, provider: selectedImageProvider };
+    if (refImages.length) {
+      payload.referenceImages = refImages.map(img => ({ data: img.data, mimeType: img.mimeType }));
+    }
+    const resp = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Image generation failed');
+
+    const img = document.getElementById('gemini-img');
+    img.src = `data:${data.mimeType};base64,${data.imageData}`;
+    // Store for download
+    img.dataset.mimeType = data.mimeType;
+    img.dataset.imageData = data.imageData;
+    imgWrap.classList.add('show');
+    const caption = document.getElementById('gemini-img-caption');
+    if (caption) caption.textContent =
+      data.source === 'seedream' ? 'Generated by SeedDream (Dreamina) · Click download to save' :
+      data.source === 'gemini'   ? 'Generated by Google Gemini · Click download to save' :
+                                   'Generated by OpenAI DALL·E 3 · Click download to save';
+    toast('🌟 Image generated!');
+  } catch (err) {
+    const section = document.getElementById('gemini-section');
+    const errDiv = document.createElement('div');
+    errDiv.className = 'error-msg';
+    errDiv.style.marginTop = '10px';
+    errDiv.textContent = '❌ ' + err.message;
+    // Remove old error if any
+    const old = section.querySelector('.error-msg');
+    if (old) old.remove();
+    section.appendChild(errDiv);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🌟 Generate AI Image';
+}
+
+function downloadGeneratedImage() {
+  const img = document.getElementById('gemini-img');
+  if (!img.dataset.imageData) return;
+  const ext = (img.dataset.mimeType || 'image/png').split('/')[1] || 'png';
+  const link = document.createElement('a');
+  link.href = `data:${img.dataset.mimeType};base64,${img.dataset.imageData}`;
+  link.download = `gemini-image-day${state.selectedDay}.${ext}`;
+  link.click();
+}
+
+// ════════════════════════════════════════════════════
+// UI INTERACTIONS
+// ════════════════════════════════════════════════════
+function selectDay(n, el) {
+  state.selectedDay = n;
+  document.querySelectorAll('.day-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const lbl = document.getElementById('day-label');
+  if (lbl) lbl.textContent = n;
+  saveState();
+}
+
+let selectedScriptType = 'heygen'; // 'heygen' or 'dreamina'
+
+function selectScriptType(type) {
+  selectedScriptType = type;
+  document.getElementById('stype-heygen').classList.toggle('active',   type === 'heygen');
+  document.getElementById('stype-dreamina').classList.toggle('active', type === 'dreamina');
+}
+
+
+function selectType(type, silent) {
+  state.postType = type;
+  document.getElementById('type-static').classList.toggle('active', type === 'static');
+  document.getElementById('type-reel').classList.toggle('active',   type === 'reel');
+  // Show/hide script type sub-selector
+  document.getElementById('script-type-row').style.display = type === 'reel' ? 'flex' : 'none';
+  const lbl = document.getElementById('asset-label');
+  if (lbl) lbl.textContent = type === 'static' ? t().s3BtnImg : t().s3BtnVid;
+  if (!silent) saveState();
+}
+
+async function copyContent(step) {
+  const texts = [null, state.calendar, state.post, state.asset];
+  const text  = texts[step];
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(t().toastCopy);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast(t().toastCopy);
+  }
+}
+
+// ════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ════════════════════════════════════════════════════
+function parseMarkdownTable(md) {
+  const lines = md.split('\n').map(l => l.trim()).filter(l => l.startsWith('|') && l.endsWith('|'));
+  if (lines.length < 2) return null;
+  const splitRow = (line) => line.split('|').slice(1, -1).map(c => c.trim());
+  const headers  = splitRow(lines[0]);
+  const rows     = lines.slice(2).map(splitRow).filter(r => r.length > 0);
+  return { headers, rows };
+}
+
+function exportToExcel() {
+  if (!state.calendar) { toast('❌ No calendar to export'); return; }
+  const table = parseMarkdownTable(state.calendar);
+  if (!table || !table.headers.length) { toast('❌ Could not read calendar data'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const data = [table.headers, ...table.rows];
+  const ws   = XLSX.utils.aoa_to_sheet(data);
+
+  // Auto column widths
+  ws['!cols'] = table.headers.map((h, i) => {
+    const maxLen = Math.max(h.length, ...table.rows.map(r => (r[i] || '').length));
+    return { wch: Math.min(Math.max(maxLen + 2, 12), 55) };
+  });
+
+  // Row height for header
+  ws['!rows'] = [{ hpx: 22 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, '7-Day Calendar');
+  XLSX.writeFile(wb, `insurance-calendar-${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast(t().toastExcelExport);
+}
+
+// ════════════════════════════════════════════════════
+// EXCEL IMPORT
+// ════════════════════════════════════════════════════
+function importFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      if (rows.length < 2) { toast('❌ Excel file appears empty'); return; }
+
+      const headers  = rows[0].map(h => String(h || '').trim()).filter(Boolean);
+      const dataRows = rows.slice(1).filter(r => r.some(c => String(c || '').trim() !== ''));
+
+      // Build markdown table
+      let md = '| ' + headers.join(' | ') + ' |\n';
+      md += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
+      dataRows.forEach(row => {
+        const cells = headers.map((_, i) => String(row[i] || '').trim().replace(/\|/g, '\\|'));
+        md += '| ' + cells.join(' | ') + ' |\n';
+      });
+
+      state.calendar = md; state.post = ''; state.asset = '';
+      showResult(1, md);
+      document.getElementById('actions-step1').style.display = 'flex';
+      unlockStep(2); lockStep(3); lockStep(4);
+      resetStep(2); resetStep(3);
+      saveState();
+      toast(t().toastExcelImport);
+    } catch (err) {
+      toast('❌ Failed to read Excel: ' + err.message);
+    }
+    event.target.value = ''; // reset file input
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ════════════════════════════════════════════════════
+// EXPORT ALL (txt download)
+// ════════════════════════════════════════════════════
+function exportAll() {
+  const tr    = t();
+  const agent = state.agentName || 'Insurance Advisor';
+  const sep   = '═'.repeat(60);
+  const lines = [
+    `AI INSURANCE CONTENT CREATOR`,
+    `Agent : ${agent}`,
+    `Date  : ${new Date().toLocaleString()}`,
+    sep, '',
+    tr.exportCalendar,
+    '─'.repeat(40),
+    state.calendar || '(not generated)', '',
+    tr.exportPost(state.selectedDay),
+    '─'.repeat(40),
+    state.post || '(not generated)', '',
+    tr.exportAsset(state.postType),
+    '─'.repeat(40),
+    state.asset || '(not generated)',
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `insurance-content-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+  toast(t().toastDownload);
+}
+
+// ════════════════════════════════════════════════════
+// NEW POST — keeps calendar, resets steps 2-4
+// ════════════════════════════════════════════════════
+function newPost() {
+  if (!confirm(t().confirmNewPost)) return;
+  state.post = ''; state.asset = '';
+  resetStep(2); resetStep(3);
+  lockStep(3); lockStep(4);
+  // Step 2 stays unlocked (calendar exists)
+  if (state.calendar) unlockStep(2);
+  saveState();
+  toast(t().toastNewPost);
+  document.getElementById('card-step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  marked.use({ breaks: true, gfm: true });
+  loadState();
+  applyTranslations();
+  // Wire up live post counter for Style DNA
+  document.getElementById('dna-fb-posts').addEventListener('input', dnaUpdateCount);
+  document.getElementById('dna-li-posts').addEventListener('input', dnaUpdateCount);
+  // Load Style DNA from its own persistent storage
+  dnaLoad();
+  // Auth check
+  checkAuth();
+  // Mobile nav init
+  if (window.innerWidth <= 768) mobileNav('dna');
+});
+
+// ════════════════════════════════════════════════════
+// STEP 4 — SOCIAL MEDIA POSTING
+// ════════════════════════════════════════════════════
+let socialStatus = { facebook: false, instagram: false, linkedin: false };
+
+async function initStep4() {
+  // Pre-fill post textarea with generated post content
+  const ta = document.getElementById('s4-post-preview');
+  if (ta && state.post) ta.value = state.post;
+  // Load which platforms are configured
+  try {
+    const r = await fetch('/api/social-status');
+    socialStatus = await r.json();
+  } catch { /* server may not be running yet */ }
+  updatePlatformBadges();
+}
+
+function updatePlatformBadges() {
+  const platforms = [
+    { id: 'fb', key: 'facebook',  note: 'Set FACEBOOK_PAGE_ID + FACEBOOK_PAGE_ACCESS_TOKEN in .env' },
+    { id: 'ig', key: 'instagram', note: 'Set INSTAGRAM_USER_ID + INSTAGRAM_ACCESS_TOKEN in .env. Also requires an AI image from Step 3.' },
+    { id: 'li', key: 'linkedin',  note: 'Set LINKEDIN_ACCESS_TOKEN + LINKEDIN_AUTHOR in .env' },
+  ];
+  for (const { id, key, note } of platforms) {
+    const ready  = socialStatus[key];
+    const badge  = document.getElementById(`badge-${id}`);
+    const noteEl = document.getElementById(`note-${id}`);
+    const btn    = document.getElementById(`btn-${id}`);
+    if (!badge) continue;
+    badge.textContent = ready ? '✅ Ready' : '⚙️ Setup required';
+    badge.className   = `social-badge ${ready ? 'ready' : 'setup'}`;
+    noteEl.textContent = ready ? '' : note;
+    btn.disabled = !ready;
+  }
+}
+
+function getPostPayload() {
+  const text      = (document.getElementById('s4-post-preview')?.value || '').trim();
+  const imgEl     = document.getElementById('gemini-img');
+  const imageData = imgEl?.dataset?.imageData || null;
+  const mimeType  = imgEl?.dataset?.mimeType  || 'image/png';
+  return { text, imageData, mimeType };
+}
+
+async function doPost(id, endpoint) {
+  const btn    = document.getElementById(`btn-${id}`);
+  const result = document.getElementById(`result-${id}`);
+  const payload = getPostPayload();
+
+  if (!payload.text) {
+    result.className   = 'social-result err';
+    result.textContent = '❌ No post content — complete Step 2 first.';
+    return false;
+  }
+
+  btn.disabled   = true;
+  btn.innerHTML  = '<span class="spinner"></span> Posting…';
+  result.className   = 'social-result';
+  result.textContent = '';
+
+  try {
+    const r    = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Post failed');
+    result.className   = 'social-result ok';
+    result.textContent = `✅ Posted! ID: ${data.postId}`;
+    toast('✅ Posted successfully!');
+    return true;
+  } catch (err) {
+    result.className   = 'social-result err';
+    result.textContent = '❌ ' + err.message;
+    return false;
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = 'Post Now';
+  }
+}
+
+function postToFacebook()  { doPost('fb', '/api/post-facebook');  }
+function postToInstagram() { doPost('ig', '/api/post-instagram'); }
+function postToLinkedIn()  { doPost('li', '/api/post-linkedin');  }
+
+async function postToAll() {
+  const enabled = [
+    socialStatus.instagram && { id: 'ig', url: '/api/post-instagram' },
+    socialStatus.facebook  && { id: 'fb', url: '/api/post-facebook'  },
+    socialStatus.linkedin  && { id: 'li', url: '/api/post-linkedin'  },
+  ].filter(Boolean);
+
+  if (!enabled.length) {
+    toast('No platforms configured — add API tokens to .env');
+    return;
+  }
+  await Promise.allSettled(enabled.map(p => doPost(p.id, p.url)));
+}
+
+// ── MOBILE NAV ──
+const MOB_PAGE_ELS = {
+  dna:      () => document.getElementById('dna-card'),
+  calendar: () => document.getElementById('card-step1'),
+  post:     () => document.getElementById('card-step2'),
+  visuals:  () => document.getElementById('card-step3'),
+  publish:  () => document.getElementById('card-step4')
+};
+let _currentMobPage = 'dna';
+
+function mobileNav(page) {
+  if (window.innerWidth > 768) return;
+  _currentMobPage = page;
+  Object.values(MOB_PAGE_ELS).forEach(fn => { const el = fn(); if (el) el.classList.remove('mob-active'); });
+  const target = MOB_PAGE_ELS[page]?.();
+  if (target) target.classList.add('mob-active');
+  document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`mobNav_${page}`);
+  if (btn) btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function markMobileStep(page) {
+  const btn = document.getElementById(`mobNav_${page}`);
+  if (btn) btn.classList.add('step-done');
+}
+
+// ── AUTH ──
+async function checkAuth() {
+  try {
+    const res = await fetch('/auth/me');
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    const data = await res.json();
+    if (!data.authEnabled) return;
+    if (!data.user) { window.location.href = '/login.html'; return; }
+    document.getElementById('userName').textContent = data.user.name || data.user.email;
+    document.getElementById('userInfo').style.display = 'flex';
+  } catch {}
+}
+
+async function doLogout() {
+  try { await fetch('/auth/logout', { method: 'POST' }); } catch {}
+  window.location.href = '/login.html';
+}
+
+// ── CHANGE PASSWORD ──
+function openChangePwd() {
+  document.getElementById('cpCurrentPwd').value = '';
+  document.getElementById('cpNewPwd').value = '';
+  document.getElementById('cpConfirmPwd').value = '';
+  document.getElementById('changePwdError').style.display = 'none';
+  document.getElementById('changePwdSuccess').style.display = 'none';
+  document.getElementById('changePwdModal').classList.add('show');
+}
+function closeChangePwd() {
+  document.getElementById('changePwdModal').classList.remove('show');
+}
+async function doChangePassword() {
+  const current = document.getElementById('cpCurrentPwd').value.trim();
+  const newPwd  = document.getElementById('cpNewPwd').value.trim();
+  const confirm = document.getElementById('cpConfirmPwd').value.trim();
+  const errEl   = document.getElementById('changePwdError');
+  const okEl    = document.getElementById('changePwdSuccess');
+  const btn     = document.getElementById('cpSubmitBtn');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!current || !newPwd || !confirm) { errEl.textContent = 'All fields are required.'; errEl.style.display = 'block'; return; }
+  if (newPwd !== confirm) { errEl.textContent = 'New passwords do not match.'; errEl.style.display = 'block'; return; }
+  if (newPwd.length < 6) { errEl.textContent = 'New password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const res = await fetch('/auth/change-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword: current, newPassword: newPwd })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    okEl.textContent = '✅ Password updated successfully!';
+    okEl.style.display = 'block';
+    setTimeout(() => closeChangePwd(), 2000);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Update Password';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('changePwdModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeChangePwd();
+  });
+});
+</script>
+
+<!-- ── TEAM PASSWORD LOCK + INSTALLABLE APP ── -->
+<div id="gateOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#1e3a5f,#2563eb);align-items:center;justify-content:center;padding:16px;font-family:inherit">
+  <form id="gateForm" style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,.25);text-align:center">
+    <img src="/icons/icon-192.png" alt="" width="64" height="64" style="border-radius:14px;margin-bottom:12px" />
+    <h2 style="font-size:1.2rem;color:#0f172a;margin-bottom:6px">AI Insurance Content Creator</h2>
+    <p style="color:#64748b;font-size:.9rem;margin-bottom:18px">Enter the team password to continue.</p>
+    <input id="gatePwd" type="password" autocomplete="current-password" placeholder="Team password" required
+      style="width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:1rem;margin-bottom:12px" />
+    <p id="gateErr" style="display:none;color:#ef4444;font-size:.85rem;margin-bottom:10px"></p>
+    <button id="gateBtn" type="submit" style="width:100%;padding:12px;border:0;border-radius:10px;background:#f97316;color:#fff;font-weight:700;font-size:1rem;cursor:pointer">Unlock</button>
+  </form>
+</div>
+<script>
+(function () {
+  const overlay = document.getElementById('gateOverlay');
+  const showGate = () => { overlay.style.display = 'flex'; setTimeout(() => document.getElementById('gatePwd').focus(), 50); };
+
+  // Any API call that comes back "locked" brings up the password screen.
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const res = await origFetch(...args);
+    if (res.status === 401) {
+      res.clone().json().then(d => { if (d && d.locked) showGate(); }).catch(() => {});
+    }
+    return res;
+  };
+
+  origFetch('/api/config').then(r => r.json()).then(cfg => {
+    if (cfg.gateEnabled && !cfg.unlocked) showGate();
+  }).catch(() => {});
+
+  document.getElementById('gateForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('gateBtn'), err = document.getElementById('gateErr');
+    btn.disabled = true; btn.textContent = 'Checking…'; err.style.display = 'none';
+    try {
+      const r = await origFetch('/api/unlock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: document.getElementById('gatePwd').value })
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not unlock');
+      location.reload();
+    } catch (ex) {
+      err.textContent = ex.message; err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Unlock';
+    }
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>

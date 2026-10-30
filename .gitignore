@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment variables — NEVER commit your API keys
+.env
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# App
+uploads/
+public/temp-images/

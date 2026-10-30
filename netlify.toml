@@ -1,0 +1,27 @@
+﻿[build]
+  publish   = "public"
+  functions = "netlify/functions"
+  command   = "echo 'No build step'"
+
+[functions]
+  included_files = ["server.js"]
+
+[[redirects]]
+  from   = "/api/*"
+  to     = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+[[redirects]]
+  from   = "/auth/*"
+  to     = "/.netlify/functions/api/auth/:splat"
+  status = 200
+
+[[redirects]]
+  from   = "/admin/*"
+  to     = "/.netlify/functions/api/admin/:splat"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

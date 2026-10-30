@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — AI Insurance Content Creator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f1f5f9; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; padding: 0 0 40px;
+}
+.admin-header {
+  width: 100%; background: linear-gradient(135deg, #0d2f6b 0%, #1565c0 55%, #1976d2 100%);
+  color: white; padding: 24px; text-align: center; margin-bottom: 32px;
+}
+.admin-header h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.admin-header p { font-size: 13px; opacity: 0.8; }
+.admin-card {
+  background: white; border-radius: 16px; width: 100%; max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; margin: 0 16px;
+}
+.tabs { display: flex; border-bottom: 2px solid #e2e8f0; }
+.tab-btn { flex: 1; padding: 14px; border: none; background: none; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
+.tab-btn.active { color: #1e40af; border-bottom: 2px solid #2563eb; margin-bottom: -2px; }
+.tab-panel { display: none; padding: 24px; }
+.tab-panel.active { display: block; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 5px; }
+.field input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #0f172a; font-family: inherit; }
+.field input:focus { outline: none; border-color: #2563eb; }
+.btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: linear-gradient(135deg, #1e40af, #2563eb); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.3); transition: opacity 0.2s; margin-top: 4px; }
+.btn:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg { border-radius: 8px; padding: 12px; font-size: 13px; margin-top: 14px; display: none; }
+.msg.ok  { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.msg.err { background: #fef2f2; border: 1px solid #fee2e2; color: #dc2626; }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+th { background: #f1f5f9; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+td { padding: 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+tr:hover td { background: #f8fafc; }
+.back { margin-top: 20px; font-size: 13px; color: #64748b; }
+.back a { color: #2563eb; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="admin-header">
+  <h1>🔐 Admin Panel</h1>
+  <p>AI Insurance Content Creator — Password Management</p>
+</div>
+<div class="admin-card">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('reset')">Reset Password</button>
+    <button class="tab-btn" onclick="switchTab('users')">View Users</button>
+  </div>
+  <div class="tab-panel active" id="tab-reset">
+    <div class="field"><label>Admin Secret</label><input type="password" id="r-secret" placeholder="Your ADMIN_SECRET value" /></div>
+    <div class="field"><label>User Email</label><input type="email" id="r-email" placeholder="user@example.com" /></div>
+    <div class="field"><label>New Password</label><input type="password" id="r-newpwd" placeholder="At least 6 characters" /></div>
+    <button class="btn" onclick="doReset()" id="resetBtn">Reset Password</button>
+    <div class="msg" id="resetMsg"></div>
+  </div>
+  <div class="tab-panel" id="tab-users">
+    <div class="field"><label>Admin Secret</label><input type="password" id="u-secret" placeholder="Your ADMIN_SECRET value" /></div>
+    <button class="btn" onclick="loadUsers()" id="usersBtn">Load Users</button>
+    <div class="msg" id="usersMsg"></div>
+    <div id="usersTable"></div>
+  </div>
+</div>
+<div class="back"><a href="/">← Back to App</a></div>
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['reset','users'][i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+async function doReset() {
+  const secret = document.getElementById('r-secret').value.trim();
+  const email  = document.getElementById('r-email').value.trim();
+  const newPwd = document.getElementById('r-newpwd').value.trim();
+  const msg = document.getElementById('resetMsg');
+  const btn = document.getElementById('resetBtn');
+  msg.style.display = 'none';
+  if (!secret || !email || !newPwd) { msg.className='msg err'; msg.textContent='All fields required.'; msg.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Resetting…';
+  try {
+    const res  = await fetch('/admin/reset-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ secret, email, newPassword: newPwd }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    msg.className='msg ok'; msg.textContent='✅ ' + data.message;
+  } catch(err) {
+    msg.className='msg err'; msg.textContent='❌ ' + err.message;
+  }
+  msg.style.display='block'; btn.disabled=false; btn.textContent='Reset Password';
+}
+async function loadUsers() {
+  const secret = document.getElementById('u-secret').value.trim();
+  const msg = document.getElementById('usersMsg');
+  const tbl = document.getElementById('usersTable');
+  const btn = document.getElementById('usersBtn');
+  msg.style.display='none'; tbl.innerHTML='';
+  if (!secret) { msg.className='msg err'; msg.textContent='Enter admin secret first.'; msg.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Loading…';
+  try {
+    const res  = await fetch(`/admin/users?secret=${encodeURIComponent(secret)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    if (!data.users.length) { msg.className='msg ok'; msg.textContent='No users yet.'; msg.style.display='block'; }
+    else {
+      tbl.innerHTML = `<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Joined</th></tr></thead><tbody>${
+        data.users.map((u,i) => `<tr><td>${i+1}</td><td>${u.name}</td><td>${u.email}</td><td>${new Date(u.created_at).toLocaleDateString()}</td></tr>`).join('')
+      }</tbody></table>`;
+    }
+  } catch(err) {
+    msg.className='msg err'; msg.textContent='❌ '+err.message; msg.style.display='block';
+  }
+  btn.disabled=false; btn.textContent='Load Users';
+}
+</script>
+</body>
+</html>
